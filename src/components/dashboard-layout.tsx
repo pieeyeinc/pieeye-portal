@@ -43,7 +43,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-xl font-semibold text-gray-900">PieEye Portal</h1>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">ConsentGate</h1>
+              <p className="text-xs text-gray-500">for GTM</p>
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -91,7 +94,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4">
-            <h1 className="text-xl font-semibold text-gray-900">PieEye Portal</h1>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">ConsentGate</h1>
+              <p className="text-xs text-gray-500">for GTM</p>
+            </div>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
@@ -139,7 +145,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <Menu className="h-6 w-6" />
           </Button>
           <div className="flex flex-1 items-center justify-between px-4">
-            <h1 className="text-lg font-semibold text-gray-900">PieEye Portal</h1>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">ConsentGate</h1>
+              <p className="text-xs text-gray-500">for GTM</p>
+            </div>
             <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
               <span className="text-sm font-medium text-gray-600">U</span>
             </div>
