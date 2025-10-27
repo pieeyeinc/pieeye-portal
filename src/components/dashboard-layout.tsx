@@ -10,6 +10,7 @@ import {
   Globe, 
   CreditCard, 
   Settings,
+  Wrench,
   Menu, 
   X,
   LogOut
@@ -21,6 +22,7 @@ const navigation = [
   { name: 'Domains', href: '/domains', icon: Globe },
   { name: 'Developer Setup', href: '/developer-setup', icon: Settings },
   { name: 'Billing', href: '/billing', icon: CreditCard },
+  { name: 'Dev Tools', href: '/dev-tools', icon: Wrench },
 ]
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
