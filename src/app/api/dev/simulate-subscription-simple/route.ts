@@ -12,8 +12,12 @@ export async function POST(request: NextRequest) {
 
     const { plan = 'starter' } = await request.json()
     
-    if (!['starter', 'pro', 'enterprise'].includes(plan)) {
-      return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+    // Only allow starter and pro for now to avoid database constraint issues
+    if (!['starter', 'pro'].includes(plan)) {
+      return NextResponse.json({ 
+        error: 'Invalid plan. Only starter and pro are supported for now.',
+        supportedPlans: ['starter', 'pro']
+      }, { status: 400 })
     }
 
     // Get user from database
@@ -35,23 +39,34 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (createError) {
+        console.error('Error creating user:', createError)
         throw createError
       }
       user = newUser!
     } else if (userError) {
+      console.error('Error fetching user:', userError)
       throw userError
     }
 
+    console.log('User found/created:', user.id)
+
     // Check if subscription already exists
-    const { data: existingSubscription } = await supabase
+    const { data: existingSubscription, error: subscriptionCheckError } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('user_id', user.id)
       .single()
 
+    if (subscriptionCheckError && subscriptionCheckError.code !== 'PGRST116') {
+      console.error('Error checking existing subscription:', subscriptionCheckError)
+      throw subscriptionCheckError
+    }
+
+    console.log('Existing subscription:', existingSubscription)
+
     const subscriptionData = {
       user_id: user.id,
-      plan: plan as 'starter' | 'pro' | 'enterprise',
+      plan: plan as 'starter' | 'pro',
       status: 'active' as const,
       stripe_customer_id: `cus_dev_${userId}`,
       stripe_subscription_id: `sub_dev_${userId}`,
@@ -62,6 +77,7 @@ export async function POST(request: NextRequest) {
 
     if (existingSubscription) {
       // Update existing subscription
+      console.log('Updating existing subscription...')
       const { data: updatedSubscription, error: updateError } = await supabase
         .from('subscriptions')
         .update(subscriptionData)
@@ -70,8 +86,11 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (updateError) {
+        console.error('Error updating subscription:', updateError)
         throw updateError
       }
+
+      console.log('Subscription updated successfully:', updatedSubscription)
 
       return NextResponse.json({ 
         success: true,
@@ -80,6 +99,7 @@ export async function POST(request: NextRequest) {
       })
     } else {
       // Create new subscription
+      console.log('Creating new subscription...')
       const { data: newSubscription, error: createSubscriptionError } = await supabase
         .from('subscriptions')
         .insert(subscriptionData)
@@ -87,8 +107,11 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (createSubscriptionError) {
+        console.error('Error creating subscription:', createSubscriptionError)
         throw createSubscriptionError
       }
+
+      console.log('Subscription created successfully:', newSubscription)
 
       return NextResponse.json({ 
         success: true,

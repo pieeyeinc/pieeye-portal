@@ -50,7 +50,7 @@ export default function DevToolsPage() {
   const handleSimulateSubscription = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/dev/simulate-subscription', {
+      const response = await fetch('/api/dev/simulate-subscription-simple', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,9 +63,14 @@ export default function DevToolsPage() {
       if (data.success) {
         toast.success(data.message)
       } else {
+        console.error('Subscription simulation error:', data)
         toast.error(data.error || 'Failed to simulate subscription')
+        if (data.details) {
+          console.error('Error details:', data.details)
+        }
       }
     } catch (error) {
+      console.error('Network error:', error)
       toast.error('Failed to simulate subscription')
     } finally {
       setLoading(false)
@@ -92,7 +97,7 @@ export default function DevToolsPage() {
       }
 
       // Then simulate subscription
-      const subscriptionResponse = await fetch('/api/dev/simulate-subscription', {
+      const subscriptionResponse = await fetch('/api/dev/simulate-subscription-simple', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -182,8 +187,10 @@ export default function DevToolsPage() {
                 >
                   <option value="starter">Starter ($49/month)</option>
                   <option value="pro">Pro ($99/month)</option>
-                  <option value="enterprise">Enterprise ($299/month)</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Enterprise plan temporarily disabled due to database constraints
+                </p>
               </div>
               <Button 
                 onClick={handleSimulateSubscription}
