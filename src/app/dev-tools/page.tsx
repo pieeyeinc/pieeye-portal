@@ -187,10 +187,8 @@ export default function DevToolsPage() {
                 >
                   <option value="starter">Starter ($49/month)</option>
                   <option value="pro">Pro ($99/month)</option>
+                  <option value="enterprise">Enterprise ($299/month)</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Enterprise plan temporarily disabled due to database constraints
-                </p>
               </div>
               <Button 
                 onClick={handleSimulateSubscription}

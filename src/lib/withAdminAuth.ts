@@ -36,9 +36,11 @@ export async function isAdminUser(): Promise<boolean> {
       return false
     }
 
-    const isAdmin = process.env.ADMIN_USER_IDS?.split(',').includes(userId) || 
-                   process.env.NODE_ENV === 'development'
+    // Check if user ID is in admin list (trim whitespace)
+    const adminUserIds = process.env.ADMIN_USER_IDS?.split(',').map(id => id.trim()) || []
+    const isAdmin = adminUserIds.includes(userId) || process.env.NODE_ENV === 'development'
 
+    console.log('Admin check:', { userId, adminUserIds, isAdmin, NODE_ENV: process.env.NODE_ENV })
     return isAdmin
   } catch (error) {
     console.error('Admin check error:', error)

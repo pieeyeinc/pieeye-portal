@@ -12,11 +12,11 @@ export async function POST(request: NextRequest) {
 
     const { plan = 'starter' } = await request.json()
     
-    // Only allow starter and pro for now to avoid database constraint issues
-    if (!['starter', 'pro'].includes(plan)) {
+    // Allow all three plans now that database schema supports enterprise
+    if (!['starter', 'pro', 'enterprise'].includes(plan)) {
       return NextResponse.json({ 
-        error: 'Invalid plan. Only starter and pro are supported for now.',
-        supportedPlans: ['starter', 'pro']
+        error: 'Invalid plan. Supported plans: starter, pro, enterprise',
+        supportedPlans: ['starter', 'pro', 'enterprise']
       }, { status: 400 })
     }
 
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     const subscriptionData = {
       user_id: user.id,
-      plan: plan as 'starter' | 'pro',
+      plan: plan as 'starter' | 'pro' | 'enterprise',
       status: 'active' as const,
       stripe_customer_id: `cus_dev_${userId}`,
       stripe_subscription_id: `sub_dev_${userId}`,
