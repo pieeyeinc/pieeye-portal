@@ -1,0 +1,146 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ConsentGate Proxy - CloudFront distribution with Lambda@Edge for consent-aware GTM proxy'
+
+Parameters:
+  DomainName:
+    Type: String
+    Description: The domain name for this proxy instance
+    Default: 'example.com'
+
+Resources:
+  # S3 Bucket for storing the GTM proxy script
+  ProxyBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'consentgate-proxy-${AWS::AccountId}-${AWS::Region}-${DomainName}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      WebsiteConfiguration:
+        IndexDocument: 'gtm.js'
+        ErrorDocument: 'gtm.js'
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: ['GET', 'HEAD']
+            AllowedOrigins: ['*']
+            MaxAge: 3600
+
+  # Bucket Policy to allow CloudFront access
+  ProxyBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ProxyBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipal
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: 's3:GetObject'
+            Resource: !Sub '${ProxyBucket}/*'
+            Condition:
+              StringEquals:
+                'AWS:SourceArn': !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}'
+
+  # Lambda@Edge function for consent checking
+  ConsentCheckFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'consentgate-consent-check-${DomainName}'
+      Runtime: nodejs18.x
+      Handler: index.handler
+      Role: !GetAtt ConsentCheckRole.Arn
+      Code:
+        ZipFile: |
+          exports.handler = async (event) => {
+            const request = event.Records[0].cf.request;
+            const headers = request.headers;
+            
+            // Check for consent cookie
+            const consentCookie = headers.cookie && 
+              headers.cookie[0] && 
+              headers.cookie[0].value.includes('cg_consent=true');
+            
+            // If no consent, return 403
+            if (!consentCookie) {
+              return {
+                status: '403',
+                statusDescription: 'Forbidden',
+                body: 'Consent required',
+                headers: {
+                  'content-type': [{ value: 'text/plain' }]
+                }
+              };
+            }
+            
+            // If consent given, allow request to proceed
+            return request;
+          };
+      Timeout: 5
+
+  # IAM Role for Lambda@Edge
+  ConsentCheckRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt ProxyBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        Enabled: true
+        DefaultRootObject: 'gtm.js'
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          LambdaFunctionAssociations:
+            - EventType: viewer-request
+              LambdaFunctionARN: !GetAtt ConsentCheckFunction.Version
+        PriceClass: PriceClass_100
+        Comment: !Sub 'ConsentGate Proxy for ${DomainName}'
+
+  # Lambda Version for Edge
+  ConsentCheckVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !Ref ConsentCheckFunction
+      Description: 'Version for Lambda@Edge'
+
+Outputs:
+  CloudFrontURL:
+    Description: 'CloudFront Distribution URL'
+    Value: !Sub 'https://${CloudFrontDistribution.DomainName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-CloudFrontURL'
+  
+  LambdaArn:
+    Description: 'Lambda@Edge Function ARN'
+    Value: !GetAtt ConsentCheckFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaArn'
+  
+  S3BucketName:
+    Description: 'S3 Bucket Name'
+    Value: !Ref ProxyBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-S3BucketName'

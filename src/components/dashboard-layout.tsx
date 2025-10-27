@@ -9,6 +9,7 @@ import {
   LayoutDashboard, 
   Globe, 
   CreditCard, 
+  Settings,
   Menu, 
   X,
   LogOut
@@ -18,6 +19,7 @@ import { cn } from '@/lib/utils'
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Domains', href: '/domains', icon: Globe },
+  { name: 'Developer Setup', href: '/developer-setup', icon: Settings },
   { name: 'Billing', href: '/billing', icon: CreditCard },
 ]
 
