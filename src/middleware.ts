@@ -7,12 +7,14 @@ const isProtectedRoute = createRouteMatcher([
   '/billing(.*)',
   '/developer-setup(.*)',
   '/docs(.*)',
+  '/admin(.*)', // Added admin routes
   '/api/domains(.*)',
   '/api/verify(.*)',
   '/api/checkout(.*)',
   '/api/create-proxy(.*)',
   '/api/proxy-status(.*)',
   '/api/verify-proxy(.*)',
+  '/api/admin(.*)', // Added admin API routes
   '/api/webhooks/stripe(.*)'
 ])
 

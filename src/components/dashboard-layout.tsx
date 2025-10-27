@@ -12,11 +12,13 @@ import {
   Settings,
   Wrench,
   Bug,
+  Shield, // Added for admin
   Menu, 
   X,
   LogOut
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AdminNavItem } from '@/components/admin/AdminNavItem'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -75,6 +77,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               )
             })}
+            <AdminNavItem onClick={() => setSidebarOpen(false)} />
           </nav>
           <div className="border-t border-gray-200 p-4">
                             <div className="flex items-center">
@@ -114,6 +117,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               )
             })}
+            <AdminNavItem />
           </nav>
           <div className="border-t border-gray-200 p-4">
                             <div className="flex items-center">
