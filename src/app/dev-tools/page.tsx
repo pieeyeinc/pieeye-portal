@@ -132,7 +132,7 @@ export default function DevToolsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="domain">Domain Name</Label>
                 <Input
                   id="domain"
@@ -172,7 +172,7 @@ export default function DevToolsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="plan">Plan</Label>
                 <select
                   id="plan"

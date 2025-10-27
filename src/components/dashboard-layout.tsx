@@ -11,6 +11,7 @@ import {
   CreditCard, 
   Settings,
   Wrench,
+  Bug,
   Menu, 
   X,
   LogOut
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Developer Setup', href: '/developer-setup', icon: Settings },
   { name: 'Billing', href: '/billing', icon: CreditCard },
   { name: 'Dev Tools', href: '/dev-tools', icon: Wrench },
+  { name: 'Debug', href: '/debug', icon: Bug },
 ]
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {

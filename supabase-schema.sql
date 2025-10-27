@@ -30,7 +30,7 @@ CREATE TABLE domains (
 CREATE TABLE subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  plan VARCHAR(50) NOT NULL CHECK (plan IN ('starter', 'pro')),
+  plan VARCHAR(50) NOT NULL CHECK (plan IN ('starter', 'pro', 'enterprise')),
   status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'canceled', 'past_due', 'unpaid')),
   stripe_customer_id VARCHAR(255) UNIQUE,
   stripe_subscription_id VARCHAR(255) UNIQUE,
