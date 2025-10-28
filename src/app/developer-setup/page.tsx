@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -50,7 +50,6 @@ export default function DeveloperSetupPage() {
   const [cloudfrontUrl, setCloudfrontUrl] = useState<string | null>(null)
   const [proxyRows, setProxyRows] = useState<ProxyRow[]>([])
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   useEffect(() => {
     fetchData()
@@ -65,7 +64,8 @@ export default function DeveloperSetupPage() {
         setDomains(domainsData.domains || [])
         
         // Select from URL if provided, otherwise first verified domain
-        const paramId = searchParams?.get('domainId')
+        const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+        const paramId = search?.get('domainId')
         if (paramId) {
           setSelectedDomainId(paramId)
         } else {
@@ -141,9 +141,9 @@ export default function DeveloperSetupPage() {
       if (response.ok) {
         toast.success('Proxy creation started! This may take a few minutes.')
         setSelectedDomainId(domainId)
-        const params = new URLSearchParams(Array.from(searchParams?.entries?.() || []))
+        const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
         params.set('domainId', domainId)
-        router.replace(`?${params.toString()}`)
+        router.replace(`${typeof window !== 'undefined' ? window.location.pathname : '/developer-setup'}?${params.toString()}`)
         // refresh table data shortly after kick-off
         setTimeout(() => fetchData(), 2000)
       } else {
@@ -463,24 +463,40 @@ export default function DeveloperSetupPage() {
                           <span className="font-medium">{domain.domain}</span>
                           {getStatusBadge(domain.status)}
                         </div>
-                        <Button
-                          onClick={() => handleProvisionProxy(domain.id)}
-                          disabled={provisioning === domain.id || !!existsOrInProgress || atLimit}
-                          title={disableReason}
-                          size="sm"
-                        >
-                          {provisioning === domain.id ? (
-                            <>
-                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                              Creating...
-                            </>
-                          ) : (
-                            <>
-                              <Play className="h-4 w-4 mr-2" />
-                              Create Proxy
-                            </>
-                          )}
-                        </Button>
+                        {existsOrInProgress ? (
+                          <Button
+                            onClick={() => {
+                              setSelectedDomainId(domain.id)
+                              const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+                              params.set('domainId', domain.id)
+                              router.replace(`${typeof window !== 'undefined' ? window.location.pathname : '/developer-setup'}?${params.toString()}`)
+                            }}
+                            variant="outline"
+                            size="sm"
+                            title="Proxy already exists or is being created"
+                          >
+                            View Status
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => handleProvisionProxy(domain.id)}
+                            disabled={provisioning === domain.id || atLimit}
+                            title={disableReason}
+                            size="sm"
+                          >
+                            {provisioning === domain.id ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Creating...
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-4 w-4 mr-2" />
+                                Create Proxy
+                              </>
+                            )}
+                          </Button>
+                        )}
                       </div>
                     )
                   })}
