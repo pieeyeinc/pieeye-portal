@@ -254,6 +254,14 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                         {log.level}
                       </span>
                       <span className="break-words">{log.message}</span>
+            {/* Progress Logs */}
+            {status.progressLogs && status.progressLogs.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-gray-700">Progress</h4>
+                <div className="bg-gray-50 rounded-lg p-3 max-h-40 overflow-y-auto">
+                  {status.progressLogs.map((log, index) => (
+                    <div key={index} className="text-sm text-gray-600 mb-1">
+                      {log}
                     </div>
                   ))}
                   {(!status.logs || status.logs.length === 0) && (
@@ -358,3 +366,4 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
     </div>
   )
 }
+
