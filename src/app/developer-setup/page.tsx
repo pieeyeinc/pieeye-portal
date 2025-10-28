@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,8 @@ export default function DeveloperSetupPage() {
   const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null)
   const [cloudfrontUrl, setCloudfrontUrl] = useState<string | null>(null)
   const [proxyRows, setProxyRows] = useState<ProxyRow[]>([])
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     fetchData()
@@ -61,10 +64,15 @@ export default function DeveloperSetupPage() {
         const domainsData = await domainsResponse.json()
         setDomains(domainsData.domains || [])
         
-        // Auto-select first verified domain
-        const verifiedDomain = domainsData.domains?.find((d: Domain) => d.status === 'verified')
-        if (verifiedDomain) {
-          setSelectedDomainId(verifiedDomain.id)
+        // Select from URL if provided, otherwise first verified domain
+        const paramId = searchParams?.get('domainId')
+        if (paramId) {
+          setSelectedDomainId(paramId)
+        } else {
+          const verifiedDomain = domainsData.domains?.find((d: Domain) => d.status === 'verified')
+          if (verifiedDomain) {
+            setSelectedDomainId(verifiedDomain.id)
+          }
         }
 
         // Load proxy statuses for all verified domains (always show table)
@@ -133,11 +141,20 @@ export default function DeveloperSetupPage() {
       if (response.ok) {
         toast.success('Proxy creation started! This may take a few minutes.')
         setSelectedDomainId(domainId)
+        const params = new URLSearchParams(Array.from(searchParams?.entries?.() || []))
+        params.set('domainId', domainId)
+        router.replace(`?${params.toString()}`)
         // refresh table data shortly after kick-off
         setTimeout(() => fetchData(), 2000)
       } else {
         const error = await response.json()
-        toast.error(error.error || 'Failed to start proxy creation')
+        if (error.code === 'PROXY_ALREADY_EXISTS' || error.code === 'PROXY_IN_PROGRESS') {
+          toast.error(error.error)
+        } else if (error.code === 'PLAN_LIMIT_REACHED') {
+          toast.error(`Plan limit reached (${error.used}/${error.limit}). Upgrade to add more domains.`)
+        } else {
+          toast.error(error.error || 'Failed to start proxy creation')
+        }
       }
     } catch (error) {
       toast.error('Failed to start proxy creation')
@@ -281,6 +298,9 @@ export default function DeveloperSetupPage() {
   }
 
   const verifiedDomains = domains.filter(d => d.status === 'verified')
+  const planLimit = subscription?.plan === 'starter' ? 1 : subscription?.plan === 'pro' ? 5 : 999999
+  const activeProxyCount = proxyRows.filter(r => r.status === 'CREATE_IN_PROGRESS' || r.status === 'CREATE_COMPLETE').length
+  const atLimit = subscription?.status === 'active' && activeProxyCount >= (planLimit || 0)
 
   return (
     <DashboardLayout>
@@ -349,6 +369,9 @@ export default function DeveloperSetupPage() {
                   <p className="text-sm text-gray-600">
                     Next billing: {new Date(subscription.current_period_end).toLocaleDateString()}
                   </p>
+                  {subscription.status === 'active' && (
+                    <p className="text-xs text-gray-500">Domains used: {activeProxyCount} / {planLimit === 999999 ? 'Unlimited' : planLimit}</p>
+                  )}
                   
                   {subscription.status === 'active' ? (
                     <div className="space-y-3">
@@ -429,32 +452,38 @@ export default function DeveloperSetupPage() {
                 </p>
                 
                 <div className="space-y-2">
-                  {verifiedDomains.map((domain) => (
-                    <div key={domain.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <Globe className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium">{domain.domain}</span>
-                        {getStatusBadge(domain.status)}
+                  {verifiedDomains.map((domain) => {
+                    const row = proxyRows.find(r => r.domainId === domain.id)
+                    const existsOrInProgress = row && (row.status === 'CREATE_IN_PROGRESS' || row.status === 'CREATE_COMPLETE')
+                    const disableReason = atLimit ? 'Upgrade plan to add more domains' : existsOrInProgress ? 'Proxy already exists or is in progress' : undefined
+                    return (
+                      <div key={domain.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <Globe className="h-4 w-4 text-gray-400" />
+                          <span className="font-medium">{domain.domain}</span>
+                          {getStatusBadge(domain.status)}
+                        </div>
+                        <Button
+                          onClick={() => handleProvisionProxy(domain.id)}
+                          disabled={provisioning === domain.id || !!existsOrInProgress || atLimit}
+                          title={disableReason}
+                          size="sm"
+                        >
+                          {provisioning === domain.id ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Creating...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4 mr-2" />
+                              Create Proxy
+                            </>
+                          )}
+                        </Button>
                       </div>
-                      <Button
-                        onClick={() => handleProvisionProxy(domain.id)}
-                        disabled={provisioning === domain.id}
-                        size="sm"
-                      >
-                        {provisioning === domain.id ? (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                            Creating...
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-4 w-4 mr-2" />
-                            Create Proxy
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             </CardContent>

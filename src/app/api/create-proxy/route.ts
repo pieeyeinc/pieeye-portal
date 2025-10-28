@@ -70,7 +70,8 @@ export async function POST(request: NextRequest) {
 
     if (domain.status !== 'verified') {
       return NextResponse.json({ 
-        error: 'Domain must be verified before creating proxy' 
+        error: 'Domain must be verified before creating proxy',
+        code: 'DOMAIN_NOT_VERIFIED'
       }, { status: 400 })
     }
 
@@ -85,7 +86,8 @@ export async function POST(request: NextRequest) {
     if (subscriptionError || !subscription) {
       console.error('No active subscription:', subscriptionError)
       return NextResponse.json({ 
-        error: 'Active subscription required to create proxy' 
+        error: 'Active subscription required to create proxy',
+        code: 'BILLING_INACTIVE'
       }, { status: 403 })
     }
 
@@ -99,17 +101,50 @@ export async function POST(request: NextRequest) {
       .eq('domain_id', domainId)
       .single()
 
-    if (existingProxy && existingProxy.stack_status === 'CREATE_COMPLETE') {
-      return NextResponse.json({ 
-        error: 'Proxy already exists for this domain' 
-      }, { status: 400 })
+    if (existingProxy) {
+      if (existingProxy.stack_status === 'CREATE_IN_PROGRESS') {
+        await log('warn', `duplicate create ignored: proxy already in progress for ${domain.domain}`, { user_id: user.id, domain_id: domainId, correlation_id: existingProxy.correlation_id ?? 'N/A' })
+        return NextResponse.json({ 
+          error: 'A proxy is already being created for this domain. Please wait a moment and refresh.',
+          code: 'PROXY_IN_PROGRESS'
+        }, { status: 409 })
+      }
+      if (existingProxy.stack_status === 'CREATE_COMPLETE') {
+        return NextResponse.json({ 
+          error: 'Proxy already exists for this domain',
+          code: 'PROXY_ALREADY_EXISTS'
+        }, { status: 400 })
+      }
+    }
+
+    // Plan domain limit enforcement
+    const plan = (subscription.plan || 'starter') as 'starter' | 'pro' | 'enterprise'
+    const planLimit = plan === 'starter' ? 1 : plan === 'pro' ? 5 : 999999
+    const { data: activeProxies, error: countError } = await supabase
+      .from('proxies')
+      .select('id, stack_status')
+      .eq('user_id', user.id)
+      .in('stack_status', ['CREATE_IN_PROGRESS', 'CREATE_COMPLETE'])
+
+    if (!countError) {
+      const activeCount = (activeProxies || []).length
+      if (activeCount >= planLimit) {
+        await log('warn', `plan limit reached for user ${user.id} on plan ${plan}`, { user_id: user.id, domain_id: domainId, correlation_id: uuidv4() })
+        return NextResponse.json({
+          error: 'You have reached the number of domains allowed on your plan.',
+          code: 'PLAN_LIMIT_REACHED',
+          limit: planLimit,
+          used: activeCount
+        }, { status: 403 })
+      }
     }
 
     // Check AWS credentials
     if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
       console.error('AWS credentials not configured')
       return NextResponse.json({ 
-        error: 'AWS credentials not configured. Please contact support.' 
+        error: 'AWS credentials not configured. Please contact support.',
+        code: 'AWS_DENIED'
       }, { status: 500 })
     }
 
@@ -129,6 +164,7 @@ export async function POST(request: NextRequest) {
         stack_name: stackName,
         stack_status: 'CREATE_IN_PROGRESS',
         verified: true,
+        correlation_id: correlationId,
         updated_at: new Date().toISOString()
       })
 
