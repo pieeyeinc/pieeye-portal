@@ -1,6 +1,6 @@
 # PieEye Portal - Self-Serve Onboarding Platform
 
-A full-stack Next.js application for PieEye's privacy compliance platform, allowing users to register, manage domains, verify ownership, and subscribe to services.
+A full-stack Next.js application for PieEye's privacy compliance platform, allowing users to register, manage domains, verify ownership, and subscribe to services. TODO
 
 ## Features
 

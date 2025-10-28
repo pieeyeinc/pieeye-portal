@@ -23,7 +23,7 @@ interface ProxyStatus {
   status: 'pending' | 'creating' | 'completed' | 'failed'
   cloudfrontUrl?: string
   lambdaArn?: string
-  progressLogs: string[]
+  logs?: { message: string; level: 'info' | 'warn' | 'error'; created_at: string }[]
   errorMessage?: string
   createdAt: string
   updatedAt: string
@@ -34,6 +34,7 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
   const [verificationResult, setVerificationResult] = useState<any>(null)
+  const [showLogs, setShowLogs] = useState(true)
 
   // Poll for status updates
   useEffect(() => {
@@ -59,11 +60,9 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
 
     fetchStatus()
 
-    // Poll every 5 seconds if status is creating
+    // Poll every 5 seconds to keep logs fresh
     const interval = setInterval(() => {
-      if (status?.status === 'creating') {
-        fetchStatus()
-      }
+      fetchStatus()
     }, 5000)
 
     return () => clearInterval(interval)
@@ -227,6 +226,34 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                 </tbody>
               </table>
             </div>
+            {/* Provision Logs (collapsible) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-sm text-gray-700">Provision Logs</h4>
+                <Button size="sm" variant="outline" onClick={() => setShowLogs((s) => !s)}>
+                  {showLogs ? 'Hide' : 'Show'}
+                </Button>
+              </div>
+              {showLogs && (
+                <div className="bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto">
+                  {(status.logs ?? []).map((log, idx) => (
+                    <div
+                      key={idx}
+                      className={`text-sm mb-1 flex items-start gap-2 ${
+                        log.level === 'error'
+                          ? 'text-red-700'
+                          : log.level === 'warn'
+                          ? 'text-yellow-700'
+                          : 'text-gray-700'
+                      }`}
+                    >
+                      <span className="text-[11px] text-gray-500 w-36 shrink-0">
+                        {new Date(log.created_at).toLocaleTimeString()}
+                      </span>
+                      <span className="uppercase text-[10px] px-1.5 py-0.5 rounded bg-white border mr-1">
+                        {log.level}
+                      </span>
+                      <span className="break-words">{log.message}</span>
             {/* Progress Logs */}
             {status.progressLogs && status.progressLogs.length > 0 && (
               <div className="space-y-2">
@@ -237,9 +264,12 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                       {log}
                     </div>
                   ))}
+                  {(!status.logs || status.logs.length === 0) && (
+                    <div className="text-sm text-gray-500">No logs yet.</div>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Error Message */}
             {status.errorMessage && (
