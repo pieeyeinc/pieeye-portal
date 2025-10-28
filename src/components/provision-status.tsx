@@ -184,6 +184,49 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {/* Summary Table (domain + resources + status) */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500">
+                    <th className="py-2 pr-4">Domain</th>
+                    <th className="py-2 pr-4">CloudFront URL</th>
+                    <th className="py-2 pr-4">Lambda ARN</th>
+                    <th className="py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="align-top">
+                    <td className="py-2 pr-4 font-medium text-gray-900">{(status as any).domain ?? '-'}</td>
+                    <td className="py-2 pr-4">
+                      {status.cloudfrontUrl ? (
+                        <div className="flex items-center space-x-2">
+                          <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono break-all">
+                            {status.cloudfrontUrl}
+                          </code>
+                          <Button size="sm" variant="outline" onClick={() => copyToClipboard(status.cloudfrontUrl!)}>
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => window.open(status.cloudfrontUrl!, '_blank')}>
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-4">
+                      {status.lambdaArn ? (
+                        <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono break-all">{status.lambdaArn}</code>
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </td>
+                    <td className="py-2">{getStatusBadge(status.status)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             {/* Progress Logs */}
             {status.progressLogs && status.progressLogs.length > 0 && (
               <div className="space-y-2">
@@ -293,3 +336,4 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
     </div>
   )
 }
+
