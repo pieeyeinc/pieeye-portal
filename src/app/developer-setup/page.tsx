@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef } from 'react'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -49,7 +48,7 @@ export default function DeveloperSetupPage() {
   const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null)
   const [cloudfrontUrl, setCloudfrontUrl] = useState<string | null>(null)
   const [proxyRows, setProxyRows] = useState<ProxyRow[]>([])
-  const router = useRouter()
+  const statusRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -141,9 +140,13 @@ export default function DeveloperSetupPage() {
       if (response.ok) {
         toast.success('Proxy creation started! This may take a few minutes.')
         setSelectedDomainId(domainId)
-        const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
-        params.set('domainId', domainId)
-        router.replace(`${typeof window !== 'undefined' ? window.location.pathname : '/developer-setup'}?${params.toString()}`)
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search)
+          params.set('domainId', domainId)
+          window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`)
+          // Smooth scroll to status section
+          statusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
         // refresh table data shortly after kick-off
         setTimeout(() => fetchData(), 2000)
       } else {
@@ -467,9 +470,12 @@ export default function DeveloperSetupPage() {
                           <Button
                             onClick={() => {
                               setSelectedDomainId(domain.id)
-                              const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
-                              params.set('domainId', domain.id)
-                              router.replace(`${typeof window !== 'undefined' ? window.location.pathname : '/developer-setup'}?${params.toString()}`)
+                              if (typeof window !== 'undefined') {
+                                const params = new URLSearchParams(window.location.search)
+                                params.set('domainId', domain.id)
+                                window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`)
+                                statusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                              }
                             }}
                             variant="outline"
                             size="sm"
@@ -508,10 +514,12 @@ export default function DeveloperSetupPage() {
 
         {/* Provision Status */}
         {selectedDomainId && (
-          <ProvisionStatus 
-            domainId={selectedDomainId}
-            onVerificationComplete={handleVerificationComplete}
-          />
+          <div ref={statusRef} id="proxy-status">
+            <ProvisionStatus 
+              domainId={selectedDomainId}
+              onVerificationComplete={handleVerificationComplete}
+            />
+          </div>
         )}
 
         {/* Always-visible proxies table */}
