@@ -32,6 +32,14 @@ interface Subscription {
   current_period_end: string
 }
 
+interface ProxyRow {
+  domainId: string
+  domain: string
+  cloudfrontUrl?: string | null
+  lambdaArn?: string | null
+  status: string
+}
+
 export default function DeveloperSetupPage() {
   const [domains, setDomains] = useState<Domain[]>([])
   const [subscription, setSubscription] = useState<Subscription | null>(null)
@@ -39,6 +47,7 @@ export default function DeveloperSetupPage() {
   const [provisioning, setProvisioning] = useState<string | null>(null)
   const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null)
   const [cloudfrontUrl, setCloudfrontUrl] = useState<string | null>(null)
+  const [proxyRows, setProxyRows] = useState<ProxyRow[]>([])
 
   useEffect(() => {
     fetchData()
@@ -56,6 +65,44 @@ export default function DeveloperSetupPage() {
         const verifiedDomain = domainsData.domains?.find((d: Domain) => d.status === 'verified')
         if (verifiedDomain) {
           setSelectedDomainId(verifiedDomain.id)
+        }
+
+        // Load proxy statuses for all verified domains (always show table)
+        if (Array.isArray(domainsData.domains)) {
+          const verified = domainsData.domains.filter((d: Domain) => d.status === 'verified')
+          const results = await Promise.all(
+            verified.map(async (d: Domain) => {
+              try {
+                const res = await fetch(`/api/proxy-status?domainId=${d.id}`)
+                if (!res.ok) {
+                  return {
+                    domainId: d.id,
+                    domain: d.domain,
+                    cloudfrontUrl: null,
+                    lambdaArn: null,
+                    status: 'UNKNOWN',
+                  } as ProxyRow
+                }
+                const data = await res.json()
+                return {
+                  domainId: d.id,
+                  domain: data.domain ?? d.domain,
+                  cloudfrontUrl: data.cloudfrontUrl ?? null,
+                  lambdaArn: data.lambdaArn ?? null,
+                  status: (data.status ?? 'NOT_FOUND').toString().toUpperCase(),
+                } as ProxyRow
+              } catch (_) {
+                return {
+                  domainId: d.id,
+                  domain: d.domain,
+                  cloudfrontUrl: null,
+                  lambdaArn: null,
+                  status: 'ERROR',
+                } as ProxyRow
+              }
+            })
+          )
+          setProxyRows(results)
         }
       }
 
@@ -86,6 +133,8 @@ export default function DeveloperSetupPage() {
       if (response.ok) {
         toast.success('Proxy creation started! This may take a few minutes.')
         setSelectedDomainId(domainId)
+        // refresh table data shortly after kick-off
+        setTimeout(() => fetchData(), 2000)
       } else {
         const error = await response.json()
         toast.error(error.error || 'Failed to start proxy creation')
@@ -150,6 +199,74 @@ export default function DeveloperSetupPage() {
         )
       default:
         return <Badge variant="secondary">{status}</Badge>
+    }
+  }
+
+  const getPlanFeatures = (plan: string) => {
+    switch (plan) {
+      case 'starter':
+        return [
+          'Up to 100,000 requests/month',
+          'Basic consent detection',
+          'CloudFront CDN',
+          'Email support',
+          '99.9% uptime SLA',
+          '1 domain included'
+        ]
+      case 'pro':
+        return [
+          'Up to 1,000,000 requests/month',
+          'Advanced consent detection',
+          'CloudFront CDN',
+          'Priority support',
+          '99.95% uptime SLA',
+          'Advanced analytics',
+          'Up to 5 custom domains',
+          'API access',
+          'Webhook integrations'
+        ]
+      case 'enterprise':
+        return [
+          'Up to 10,000,000 requests/month',
+          'Custom consent flows',
+          'Dedicated CloudFront distribution',
+          '24/7 phone support',
+          '99.99% uptime SLA',
+          'Custom analytics',
+          'Unlimited domains',
+          'Advanced API access',
+          'Custom integrations',
+          'Dedicated account manager',
+          'SLA guarantees'
+        ]
+      default:
+        return []
+    }
+  }
+
+  const getUpgradeFeatures = (plan: string) => {
+    switch (plan) {
+      case 'starter':
+        return [
+          'Advanced analytics dashboard',
+          'Up to 5 domains (vs 1)',
+          'API access & webhooks',
+          'Priority support',
+          'Higher request limits'
+        ]
+      case 'pro':
+        return [
+          'Custom consent flows',
+          'Dedicated CloudFront distribution',
+          '24/7 phone support',
+          'Unlimited domains',
+          'Dedicated account manager',
+          'Custom integrations'
+        ]
+      case 'enterprise':
+        return [] // No upgrades available for enterprise
+      default:
+        return []
     }
   }
 
@@ -224,7 +341,7 @@ export default function DeveloperSetupPage() {
             </CardHeader>
             <CardContent>
               {subscription ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="font-medium capitalize">{subscription.plan} Plan</span>
                     {getSubscriptionBadge(subscription.status)}
@@ -232,10 +349,47 @@ export default function DeveloperSetupPage() {
                   <p className="text-sm text-gray-600">
                     Next billing: {new Date(subscription.current_period_end).toLocaleDateString()}
                   </p>
+                  
                   {subscription.status === 'active' ? (
-                    <div className="flex items-center">
-                      <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
-                      <span className="text-green-800 text-sm">Ready to create proxy</span>
+                    <div className="space-y-3">
+                      <div className="flex items-center">
+                        <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                        <span className="text-green-800 text-sm">Ready to create proxy</span>
+                      </div>
+                      
+                      {/* Plan Features */}
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-gray-900">What's Included:</h4>
+                        <div className="space-y-1">
+                          {getPlanFeatures(subscription.plan).map((feature, index) => (
+                            <div key={index} className="flex items-center text-sm text-gray-600">
+                              <CheckCircle className="h-3 w-3 text-green-500 mr-2 flex-shrink-0" />
+                              <span>{feature}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Upgrade Features */}
+                      {getUpgradeFeatures(subscription.plan).length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium text-gray-900">Upgrade for:</h4>
+                          <div className="space-y-1">
+                            {getUpgradeFeatures(subscription.plan).map((feature, index) => (
+                              <div key={index} className="flex items-center text-sm text-gray-500">
+                                <AlertCircle className="h-3 w-3 text-yellow-500 mr-2 flex-shrink-0" />
+                                <span>{feature}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <Button asChild size="sm" variant="outline" className="mt-2">
+                            <a href="/billing">
+                              <CreditCard className="h-3 w-3 mr-1" />
+                              Upgrade Plan
+                            </a>
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex items-center">
@@ -247,7 +401,8 @@ export default function DeveloperSetupPage() {
               ) : (
                 <div className="text-center py-4">
                   <AlertCircle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-                  <p className="text-gray-600 mb-3">No active subscription</p>
+                  <p className="text-gray-600 mb-2">Get a subscription to create a proxy for your domains</p>
+                  <p className="text-sm text-gray-500 mb-3">Choose a plan to start provisioning consent-aware GTM proxies</p>
                   <Button asChild>
                     <a href="/billing">
                       <CreditCard className="h-4 w-4 mr-2" />
@@ -313,6 +468,59 @@ export default function DeveloperSetupPage() {
             onVerificationComplete={handleVerificationComplete}
           />
         )}
+
+        {/* Always-visible proxies table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Proxies</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500">
+                    <th className="py-2 pr-4">Domain</th>
+                    <th className="py-2 pr-4">CloudFront URL</th>
+                    <th className="py-2 pr-4">Lambda ARN</th>
+                    <th className="py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {proxyRows.length === 0 ? (
+                    <tr>
+                      <td className="py-3 pr-4 text-gray-500" colSpan={4}>No proxies found yet.</td>
+                    </tr>
+                  ) : (
+                    proxyRows.map((row) => (
+                      <tr key={row.domainId} className="align-top">
+                        <td className="py-3 pr-4 font-medium text-gray-900">{row.domain}</td>
+                        <td className="py-3 pr-4">
+                          {row.cloudfrontUrl ? (
+                            <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono break-all">{row.cloudfrontUrl}</code>
+                          ) : (
+                            <span className="text-gray-500">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {row.lambdaArn ? (
+                            <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono break-all">{row.lambdaArn}</code>
+                          ) : (
+                            <span className="text-gray-500">-</span>
+                          )}
+                        </td>
+                        <td className="py-3">
+                          <span className="uppercase text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">
+                            {row.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Implementation Steps */}
         {cloudfrontUrl && (
