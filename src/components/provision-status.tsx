@@ -23,7 +23,7 @@ interface ProxyStatus {
   status: 'pending' | 'creating' | 'completed' | 'failed'
   cloudfrontUrl?: string
   lambdaArn?: string
-  progressLogs: string[]
+  logs?: { message: string; level: 'info' | 'warn' | 'error'; created_at: string }[]
   errorMessage?: string
   createdAt: string
   updatedAt: string
@@ -34,6 +34,7 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
   const [verificationResult, setVerificationResult] = useState<any>(null)
+  const [showLogs, setShowLogs] = useState(true)
 
   // Poll for status updates
   useEffect(() => {
@@ -59,11 +60,9 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
 
     fetchStatus()
 
-    // Poll every 5 seconds if status is creating
+    // Poll every 5 seconds to keep logs fresh
     const interval = setInterval(() => {
-      if (status?.status === 'creating') {
-        fetchStatus()
-      }
+      fetchStatus()
     }, 5000)
 
     return () => clearInterval(interval)
@@ -184,19 +183,85 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {/* Progress Logs */}
-            {status.progressLogs && status.progressLogs.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm text-gray-700">Progress</h4>
-                <div className="bg-gray-50 rounded-lg p-3 max-h-40 overflow-y-auto">
-                  {status.progressLogs.map((log, index) => (
-                    <div key={index} className="text-sm text-gray-600 mb-1">
-                      {log}
+            {/* Summary Table (domain + resources + status) */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500">
+                    <th className="py-2 pr-4">Domain</th>
+                    <th className="py-2 pr-4">CloudFront URL</th>
+                    <th className="py-2 pr-4">Lambda ARN</th>
+                    <th className="py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="align-top">
+                    <td className="py-2 pr-4 font-medium text-gray-900">{(status as any).domain ?? '-'}</td>
+                    <td className="py-2 pr-4">
+                      {status.cloudfrontUrl ? (
+                        <div className="flex items-center space-x-2">
+                          <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono break-all">
+                            {status.cloudfrontUrl}
+                          </code>
+                          <Button size="sm" variant="outline" onClick={() => copyToClipboard(status.cloudfrontUrl!)}>
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => window.open(status.cloudfrontUrl!, '_blank')}>
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-4">
+                      {status.lambdaArn ? (
+                        <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono break-all">{status.lambdaArn}</code>
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </td>
+                    <td className="py-2">{getStatusBadge(status.status)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            {/* Provision Logs (collapsible) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-sm text-gray-700">Provision Logs</h4>
+                <Button size="sm" variant="outline" onClick={() => setShowLogs((s) => !s)}>
+                  {showLogs ? 'Hide' : 'Show'}
+                </Button>
+              </div>
+              {showLogs && (
+                <div className="bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto">
+                  {(status.logs ?? []).map((log, idx) => (
+                    <div
+                      key={idx}
+                      className={`text-sm mb-1 flex items-start gap-2 ${
+                        log.level === 'error'
+                          ? 'text-red-700'
+                          : log.level === 'warn'
+                          ? 'text-yellow-700'
+                          : 'text-gray-700'
+                      }`}
+                    >
+                      <span className="text-[11px] text-gray-500 w-36 shrink-0">
+                        {new Date(log.created_at).toLocaleTimeString()}
+                      </span>
+                      <span className="uppercase text-[10px] px-1.5 py-0.5 rounded bg-white border mr-1">
+                        {log.level}
+                      </span>
+                      <span className="break-words">{log.message}</span>
                     </div>
                   ))}
+                  {(!status.logs || status.logs.length === 0) && (
+                    <div className="text-sm text-gray-500">No logs yet.</div>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Error Message */}
             {status.errorMessage && (
