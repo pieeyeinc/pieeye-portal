@@ -305,6 +305,29 @@ export default function DeveloperSetupPage() {
   const activeProxyCount = proxyRows.filter(r => r.status === 'CREATE_IN_PROGRESS' || r.status === 'CREATE_COMPLETE').length
   const atLimit = subscription?.status === 'active' && activeProxyCount >= (planLimit || 0)
 
+  const disableProxy = async (domainId: string) => {
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm('Are you sure? This will stop GTM from loading through ConsentGate for this domain.')
+      if (!ok) return
+    }
+    try {
+      const res = await fetch('/api/disable-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domainId })
+      })
+      if (res.ok) {
+        toast.success('Proxy disabled')
+        setTimeout(() => fetchData(), 500)
+      } else {
+        const err = await res.json()
+        toast.error(err.error || 'Failed to disable proxy')
+      }
+    } catch (e) {
+      toast.error('Failed to disable proxy')
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -457,7 +480,7 @@ export default function DeveloperSetupPage() {
                 <div className="space-y-2">
                   {verifiedDomains.map((domain) => {
                     const row = proxyRows.find(r => r.domainId === domain.id)
-                    const existsOrInProgress = row && (row.status === 'CREATE_IN_PROGRESS' || row.status === 'CREATE_COMPLETE')
+                    const existsOrInProgress = row && (row.status === 'CREATE_IN_PROGRESS' || row.status === 'CREATE_COMPLETE' || row.status === 'DISABLED')
                     const disableReason = atLimit ? 'Upgrade plan to add more domains' : existsOrInProgress ? 'Proxy already exists or is in progress' : undefined
                     return (
                       <div key={domain.id} className="flex items-center justify-between p-3 border rounded-lg">
@@ -466,7 +489,9 @@ export default function DeveloperSetupPage() {
                           <span className="font-medium">{domain.domain}</span>
                           {getStatusBadge(domain.status)}
                         </div>
-                        {existsOrInProgress ? (
+                        {row && row.status === 'DISABLED' ? (
+                          <div className="flex items-center text-gray-500 text-sm">Disabled</div>
+                        ) : existsOrInProgress ? (
                           <Button
                             onClick={() => {
                               setSelectedDomainId(domain.id)
@@ -501,6 +526,16 @@ export default function DeveloperSetupPage() {
                                 Create Proxy
                               </>
                             )}
+                          </Button>
+                        )}
+                        {existsOrInProgress && row && row.status !== 'DISABLED' && (
+                          <Button
+                            className="ml-2"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => disableProxy(domain.id)}
+                          >
+                            Disable
                           </Button>
                         )}
                       </div>

@@ -72,11 +72,12 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      status: proxy.stack_status,
+      status: proxy.disabled ? 'DISABLED' : proxy.stack_status,
       cloudfrontUrl: proxy.cloudfront_url,
       lambdaArn: proxy.lambda_arn,
       domain: proxy.domain,
       verified: proxy.verified,
+      disabled: !!proxy.disabled,
       logs: logs || [],
       createdAt: proxy.created_at,
       updatedAt: proxy.updated_at

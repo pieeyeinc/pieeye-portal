@@ -20,13 +20,14 @@ interface ProvisionStatusProps {
 }
 
 interface ProxyStatus {
-  status: 'pending' | 'creating' | 'completed' | 'failed'
+  status: 'pending' | 'creating' | 'completed' | 'failed' | 'DISABLED'
   cloudfrontUrl?: string
   lambdaArn?: string
   logs?: { message: string; level: 'info' | 'warn' | 'error'; created_at: string }[]
   errorMessage?: string
   createdAt: string
   updatedAt: string
+  disabled?: boolean
 }
 
 export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionStatusProps) {
@@ -101,6 +102,8 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case 'DISABLED':
+        return <AlertCircle className="h-5 w-5 text-gray-500" />
       case 'completed':
         return <CheckCircle className="h-5 w-5 text-green-600" />
       case 'creating':
@@ -114,6 +117,12 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'DISABLED':
+        return (
+          <Badge className="bg-gray-200 text-gray-700">
+            Disabled
+          </Badge>
+        )
       case 'completed':
         return (
           <Badge className="bg-green-100 text-green-800">
@@ -262,6 +271,17 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                 </div>
               )}
             </div>
+
+            {/* Disabled Notice */}
+            {status.status === 'DISABLED' && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <div className="flex items-center">
+                  <AlertCircle className="h-4 w-4 text-gray-600 mr-2" />
+                  <span className="text-gray-800 font-medium">Disabled</span>
+                </div>
+                <p className="text-gray-600 text-sm mt-1">Billing inactive or manually disabled. GTM is no longer served for this domain.</p>
+              </div>
+            )}
 
             {/* Error Message */}
             {status.errorMessage && (

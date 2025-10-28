@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { supabase } from '@/lib/supabase'
 import Stripe from 'stripe'
+import { v4 as uuidv4 } from 'uuid'
 
 export async function POST(request: NextRequest) {
   const body = await request.text()
@@ -79,6 +80,35 @@ export async function POST(request: NextRequest) {
             .eq('stripe_subscription_id', subscription.id)
 
           console.log(`Subscription updated for user ${user.id}`)
+
+          // Auto-disable on bad billing states
+          if (['canceled', 'past_due', 'unpaid', 'incomplete_expired'].includes(subscription.status as any)) {
+            const { data: proxies } = await supabase
+              .from('proxies')
+              .select('id, domain_id, disabled')
+              .eq('user_id', user.id)
+
+            const correlationId = uuidv4()
+            if (proxies && proxies.length > 0) {
+              const ids = proxies.filter(p => !p.disabled).map(p => p.id)
+              if (ids.length > 0) {
+                await supabase
+                  .from('proxies')
+                  .update({ disabled: true, updated_at: new Date().toISOString() })
+                  .in('id', ids)
+
+                // Log one row per domain
+                const rows = proxies.map(p => ({
+                  user_id: user.id,
+                  domain_id: p.domain_id,
+                  correlation_id: correlationId,
+                  level: 'warn',
+                  message: `Auto-disabled due to billing status: ${subscription.status}`
+                }))
+                await supabase.from('provision_logs').insert(rows)
+              }
+            }
+          }
         }
         break
       }
@@ -103,6 +133,32 @@ export async function POST(request: NextRequest) {
               updated_at: new Date().toISOString()
             })
             .eq('stripe_subscription_id', subscription.id)
+
+          // Disable all proxies for this user
+          const { data: proxies } = await supabase
+            .from('proxies')
+            .select('id, domain_id, disabled')
+            .eq('user_id', user.id)
+
+          const correlationId = uuidv4()
+          if (proxies && proxies.length > 0) {
+            const ids = proxies.filter(p => !p.disabled).map(p => p.id)
+            if (ids.length > 0) {
+              await supabase
+                .from('proxies')
+                .update({ disabled: true, updated_at: new Date().toISOString() })
+                .in('id', ids)
+
+              const rows = proxies.map(p => ({
+                user_id: user.id,
+                domain_id: p.domain_id,
+                correlation_id: correlationId,
+                level: 'warn',
+                message: 'Auto-disabled due to billing status: canceled'
+              }))
+              await supabase.from('provision_logs').insert(rows)
+            }
+          }
 
           console.log(`Subscription canceled for user ${user.id}`)
         }
