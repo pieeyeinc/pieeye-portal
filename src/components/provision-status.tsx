@@ -254,14 +254,6 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                         {log.level}
                       </span>
                       <span className="break-words">{log.message}</span>
-            {/* Progress Logs */}
-            {status.progressLogs && status.progressLogs.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm text-gray-700">Progress</h4>
-                <div className="bg-gray-50 rounded-lg p-3 max-h-40 overflow-y-auto">
-                  {status.progressLogs.map((log, index) => (
-                    <div key={index} className="text-sm text-gray-600 mb-1">
-                      {log}
                     </div>
                   ))}
                   {(!status.logs || status.logs.length === 0) && (
@@ -279,42 +271,6 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                   <span className="text-red-800 font-medium">Error</span>
                 </div>
                 <p className="text-red-700 text-sm mt-1">{status.errorMessage}</p>
-              </div>
-            )}
-
-            {/* CloudFront URL */}
-            {status.cloudfrontUrl && (
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm text-gray-700">CloudFront URL</h4>
-                <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-gray-100 px-3 py-2 rounded text-sm font-mono">
-                    {status.cloudfrontUrl}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard(status.cloudfrontUrl!)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => window.open(status.cloudfrontUrl, '_blank')}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Lambda ARN */}
-            {status.lambdaArn && (
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm text-gray-700">Lambda ARN</h4>
-                <code className="block bg-gray-100 px-3 py-2 rounded text-sm font-mono break-all">
-                  {status.lambdaArn}
-                </code>
               </div>
             )}
 
