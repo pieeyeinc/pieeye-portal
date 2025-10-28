@@ -164,6 +164,7 @@ export async function POST(request: NextRequest) {
         stack_name: stackName,
         stack_status: 'CREATE_IN_PROGRESS',
         verified: true,
+        correlation_id: correlationId,
         updated_at: new Date().toISOString()
       })
 
