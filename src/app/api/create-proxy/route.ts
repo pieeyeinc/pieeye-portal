@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabase } from '@/lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
+import { createProxyStack } from '@/lib/aws'
 
 export async function POST(request: NextRequest) {
   try {
@@ -176,36 +177,21 @@ export async function POST(request: NextRequest) {
     console.log('Proxy record created:', proxyId)
     await log('info', 'starting proxy build', { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
 
-    // For now, simulate proxy creation since AWS might not be fully configured
-    // In a real implementation, this would start the CloudFormation stack creation
-    setTimeout(async () => {
-      try {
-        await log('info', 'calling AWS', { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
-        await log('info', 'stack create started', { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
-
-        // Simulate successful proxy creation
-        await supabase
-          .from('proxies')
-          .update({
-            stack_status: 'CREATE_COMPLETE',
-            cloudfront_url: `https://d1234567890.cloudfront.net`,
-            lambda_arn: `arn:aws:lambda:us-east-1:123456789012:function:consentgate-${domain.domain}`,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', proxyId)
-
-        await log('info', 'stack create success', { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
-
-        console.log('Simulated proxy creation completed for:', domain.domain)
-      } catch (error) {
-        console.error('Error updating proxy status:', error)
-        await log('error', `stack create fail: ${error instanceof Error ? error.message : 'Unknown error'}`, { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
+    // Start AWS CloudFormation stack (if credentials available)
+    try {
+      const res = await createProxyStack(stackName, domain.domain)
+      if (res.started) {
+        await log('info', 'stack create started (AWS CloudFormation)', { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
+      } else {
+        await log('warn', 'AWS not configured; stack not created (running in simulated mode)', { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
       }
-    }, 2000) // Simulate 2 second creation time
+    } catch (e: any) {
+      await log('error', `AWS stack create error: ${e?.message || 'unknown'}`, { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
+    }
 
     return NextResponse.json({ 
       success: true,
-      message: 'Proxy creation started (simulated)',
+      message: 'Proxy creation started',
       proxyId: proxyId,
       correlationId
     })

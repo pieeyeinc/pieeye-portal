@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabase } from '@/lib/supabase'
+import { getStackStatus } from '@/lib/aws'
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,6 +47,38 @@ export async function GET(request: NextRequest) {
         status: 'NOT_FOUND',
         message: 'No proxy found for this domain'
       })
+    }
+
+    // If in progress and AWS is configured, try to update from CloudFormation
+    if (proxy.stack_status === 'CREATE_IN_PROGRESS' && proxy.stack_name) {
+      try {
+        const aws = await getStackStatus(proxy.stack_name)
+        if (aws.ok) {
+          if (aws.status === 'CREATE_COMPLETE') {
+            await supabase
+              .from('proxies')
+              .update({
+                stack_status: 'CREATE_COMPLETE',
+                cloudfront_url: aws.outputs?.CloudFrontDomainName ? `https://${aws.outputs.CloudFrontDomainName}` : proxy.cloudfront_url,
+                lambda_arn: aws.outputs?.LambdaVersionArn || proxy.lambda_arn,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', proxy.id)
+            // refresh local proxy object for response
+            proxy.cloudfront_url = aws.outputs?.CloudFrontDomainName ? `https://${aws.outputs.CloudFrontDomainName}` : proxy.cloudfront_url
+            proxy.lambda_arn = aws.outputs?.LambdaVersionArn || proxy.lambda_arn
+            proxy.stack_status = 'CREATE_COMPLETE'
+          } else if (/FAILED|ROLLBACK/i.test(aws.status || '')) {
+            await supabase
+              .from('proxies')
+              .update({ stack_status: 'CREATE_FAILED', updated_at: new Date().toISOString() })
+              .eq('id', proxy.id)
+            proxy.stack_status = 'CREATE_FAILED'
+          }
+        }
+      } catch (e) {
+        // ignore AWS errors in status polling
+      }
     }
 
     // Fetch last ~20 logs filtered by latest correlation_id for this domain
