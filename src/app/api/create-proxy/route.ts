@@ -186,7 +186,14 @@ export async function POST(request: NextRequest) {
         await log('warn', 'AWS not configured; stack not created (running in simulated mode)', { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
       }
     } catch (e: any) {
-      await log('error', `AWS stack create error: ${e?.message || 'unknown'}`, { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
+      const msg = (e?.message || '').toString()
+      // Handle idempotency: if the stack already exists, continue by monitoring it instead of failing
+      if (/AlreadyExists/i.test(msg) || /already exists/i.test(msg)) {
+        await log('info', `stack already exists, resuming monitoring (${stackName})`, { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
+      } else {
+        await log('error', `AWS stack create error: ${msg || 'unknown'}`, { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
+        return NextResponse.json({ ok: false, error: 'Failed to create AWS stack' }, { status: 500 })
+      }
     }
 
     return NextResponse.json({ 

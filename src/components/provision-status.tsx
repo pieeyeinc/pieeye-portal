@@ -272,6 +272,13 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
               )}
             </div>
 
+            {/* Helpful note while creating */}
+            {status.status === 'CREATE_IN_PROGRESS' && (
+              <div className="text-xs text-gray-500">
+                AWS is provisioning your proxy. This typically takes 2–5 minutes; CloudFront can take a bit longer. Started at {new Date(status.createdAt).toLocaleTimeString()}.
+              </div>
+            )}
+
             {/* Disabled Notice */}
             {status.status === 'DISABLED' && (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
