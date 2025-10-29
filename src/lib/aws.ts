@@ -166,12 +166,19 @@ export async function createProxyStack(stackName: string, domain: string, unique
   if (!hasAwsCreds()) return { started: false, reason: 'NO_AWS' }
   const cf = getCf()
   const TemplateBody = buildProxyTemplate(stackName, domain, uniqueId)
-  await cf.send(new CreateStackCommand({
-    StackName: stackName,
-    Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
-    TemplateBody
-  }))
-  return { started: true }
+  
+  try {
+    const result = await cf.send(new CreateStackCommand({
+      StackName: stackName,
+      Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
+      TemplateBody
+    }))
+    console.log('Stack creation initiated:', result.StackId)
+    return { started: true, stackId: result.StackId }
+  } catch (e: any) {
+    console.error('Stack creation error:', e.message, e.code)
+    throw e
+  }
 }
 
 export async function getStackStatus(stackName: string) {

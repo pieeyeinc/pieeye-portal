@@ -399,6 +399,33 @@ export default function DeveloperSetupPage() {
     }
   }
 
+  const viewStackEvents = async (domainId: string) => {
+    try {
+      const res = await fetch(`/api/stack-events?domainId=${domainId}`)
+      const data = await res.json()
+      if (res.ok && data.events) {
+        console.log('Stack Events for', data.stackName)
+        console.table(data.events)
+        
+        // Find error events
+        const errorEvents = data.events.filter((e: any) => e.resourceStatus?.includes('FAIL'))
+        if (errorEvents.length > 0) {
+          const errorMsg = errorEvents.map((e: any) => 
+            `${e.logicalResourceId}: ${e.resourceStatusReason || e.resourceStatus}`
+          ).join('\n')
+          toast.error('Stack errors found. Check console for details.')
+          alert('Stack Events with Errors:\n\n' + errorMsg)
+        } else {
+          toast.success('Stack events retrieved. Check console for details.')
+        }
+      } else {
+        toast.error(data.error || 'Failed to fetch stack events')
+      }
+    } catch (e) {
+      toast.error('Failed to fetch stack events')
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -689,6 +716,9 @@ export default function DeveloperSetupPage() {
                                 </Button>
                                 <Button size="sm" variant="outline" onClick={() => cleanupStack(row.domainId)} title="Cleanup AWS stack">
                                   Cleanup Stack
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => viewStackEvents(row.domainId)} title="View CloudFormation events">
+                                  View Events
                                 </Button>
                               </>
                             )}
