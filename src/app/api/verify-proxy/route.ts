@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabase } from '@/lib/supabase'
+import { testCloudFrontDirectly } from '@/lib/aws'
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +31,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Proxy not ready' }, { status: 400 })
     }
 
+    // First test CloudFront directly to see if it's reachable at all
+    const cfTest = await testCloudFrontDirectly(proxy.cloudfront_url)
+    
     const url = `${proxy.cloudfront_url.replace(/\/$/, '')}/gtm.js?id=GTM-TEST`
     const started = Date.now()
     const resp = await fetch(url, { method: 'GET', headers: { 'cache-control': 'no-cache' } })
@@ -56,9 +60,15 @@ export async function POST(request: NextRequest) {
       tips.push('This test uses GTM-TEST which can return 404. With your real GTM container ID you should receive 200.')
     } else if (resp.status === 503) {
       reason = 'Service Unavailable from CloudFront.'
-      tips.push('New CloudFront distributions can return 503 for a few minutes during propagation.')
-      tips.push('Verify distribution status is Deployed in CloudFront console (us-east-1).')
-      tips.push('Confirm Lambda@Edge version is associated to Viewer Request and role permissions are correct.')
+      if (!cfTest.reachable) {
+        reason += ' CloudFront distribution is not reachable.'
+        tips.push('CloudFront distribution may still be deploying (can take 15-20 minutes).')
+        tips.push('Check CloudFront console to verify distribution status is "Deployed".')
+      } else {
+        tips.push('CloudFront is reachable but Lambda@Edge function may be failing.')
+        tips.push('Check CloudWatch logs for Lambda@Edge errors in us-east-1 region.')
+        tips.push('Verify Lambda@Edge function has correct permissions and is associated to Viewer Request.')
+      }
     } else {
       reason = `Unexpected status ${resp.status}`
     }
@@ -68,7 +78,18 @@ export async function POST(request: NextRequest) {
     const normalizedOk = originStatus === 200 || originStatus === 403 || originStatus === 404
     const displayStatus = normalizedOk ? 200 : originStatus
 
-    return NextResponse.json({ ok: normalizedOk, statusCode: displayStatus, originStatus, latencyMs, reachable, reason, tips, xCache, cfRay })
+    return NextResponse.json({ 
+      ok: normalizedOk, 
+      statusCode: displayStatus, 
+      originStatus, 
+      latencyMs, 
+      reachable, 
+      reason, 
+      tips, 
+      xCache, 
+      cfRay,
+      cloudfrontTest: cfTest
+    })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || 'Verify failed' }, { status: 500 })
   }

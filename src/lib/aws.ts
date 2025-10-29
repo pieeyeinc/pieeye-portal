@@ -25,19 +25,52 @@ export function buildProxyTemplate(stackName: string, domain: string) {
   const lambdaCode = `
     'use strict';
     exports.handler = async (event) => {
-      const request = event.Records[0].cf.request;
-      const headers = request.headers || {};
-      const cookies = (headers.cookie && headers.cookie[0] && headers.cookie[0].value) || '';
-      const hasConsent = /(?:^|;\s*)cg_consent=1(?:;|$)/.test(cookies);
-      const path = request.uri || '';
-      const blocked = /\/gtm\.js|\/ns\.html|\/gtm\/|collect/i.test(path);
-      if (!hasConsent && blocked) {
-        if (/\.js$/.test(path)) {
-          return { status: '200', statusDescription: 'OK', headers: { 'cache-control': [{ key:'Cache-Control', value: 'no-store' }], 'content-type': [{ key:'Content-Type', value: 'application/javascript' }] }, body: '/* ConsentGate: blocked until consent */' };
+      try {
+        // Always return the request object to prevent 503 errors
+        if (!event || !event.Records || !event.Records[0] || !event.Records[0].cf) {
+          console.log('Invalid event structure, passing through');
+          return event.Records[0].cf.request || {};
         }
-        return { status: '403', statusDescription: 'Forbidden', headers: { 'cache-control': [{ key:'Cache-Control', value: 'no-store' }] }, body: 'Consent required' };
+        
+        const request = event.Records[0].cf.request;
+        if (!request) {
+          console.log('No request object, passing through');
+          return {};
+        }
+        
+        const headers = request.headers || {};
+        const cookies = (headers.cookie && headers.cookie[0] && headers.cookie[0].value) || '';
+        const hasConsent = /(?:^|;\s*)cg_consent=1(?:;|$)/.test(cookies);
+        const path = request.uri || '';
+        const blocked = /\/gtm\.js|\/ns\.html|\/gtm\/|collect/i.test(path);
+        
+        if (!hasConsent && blocked) {
+          if (/\.js$/.test(path)) {
+            return { 
+              status: '200', 
+              statusDescription: 'OK', 
+              headers: { 
+                'cache-control': [{ key:'Cache-Control', value: 'no-store' }], 
+                'content-type': [{ key:'Content-Type', value: 'application/javascript' }] 
+              }, 
+              body: '/* ConsentGate: blocked until consent */' 
+            };
+          }
+          return { 
+            status: '403', 
+            statusDescription: 'Forbidden', 
+            headers: { 'cache-control': [{ key:'Cache-Control', value: 'no-store' }] }, 
+            body: 'Consent required' 
+          };
+        }
+        
+        // Always return the request object to continue processing
+        return request;
+      } catch (error) {
+        console.log('Lambda@Edge error:', error);
+        // On error, always return the request to prevent 503
+        return event.Records[0].cf.request || {};
       }
-      return request;
     };
   `;
 
@@ -200,6 +233,30 @@ export async function getLambdaErrorLogs(lambdaArn: string, limit: number = 10) 
     return { ok: true, events }
   } catch (e) {
     return { ok: false }
+  }
+}
+
+export async function testCloudFrontDirectly(cloudfrontUrl: string) {
+  try {
+    // Test the CloudFront URL directly without any path to see if it's reachable
+    const testUrl = cloudfrontUrl.replace(/\/$/, '') + '/test'
+    const response = await fetch(testUrl, { 
+      method: 'GET',
+      headers: { 'User-Agent': 'ConsentGate-Test/1.0' }
+    })
+    
+    return {
+      ok: true,
+      status: response.status,
+      statusText: response.statusText,
+      reachable: response.status < 500
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      reachable: false
+    }
   }
 }
 
