@@ -422,6 +422,35 @@ export function ProvisionStatus({ domainId, onVerificationComplete, onGtmDetecte
                     onClick={async () => {
                       setVerifying(true)
                       try {
+                        const response = await fetch('/api/test-cloudfront-detailed', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ domainId }),
+                        })
+                        const result = await response.json()
+                        if (result.ok) {
+                          const summary = result.tests.map((t: any) => `${t.name}: ${t.status || 'FAILED'}`).join(', ')
+                          toast.success(`Detailed test: ${summary}`)
+                          console.log('Detailed test results:', result.tests)
+                        } else {
+                          toast.error(`Detailed test failed: ${result.error}`)
+                        }
+                      } catch (error) {
+                        toast.error('Detailed test failed')
+                      } finally {
+                        setVerifying(false)
+                      }
+                    }}
+                    disabled={verifying}
+                    size="sm"
+                    variant="outline"
+                  >
+                    Test All Paths
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      setVerifying(true)
+                      try {
                         const response = await fetch('/api/test-origin', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },

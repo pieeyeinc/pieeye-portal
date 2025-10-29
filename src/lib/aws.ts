@@ -116,7 +116,12 @@ export function buildProxyTemplate(stackName: string, domain: string) {
               {
                 Id: 'GTMOrigin',
                 DomainName: 'www.googletagmanager.com',
-                CustomOriginConfig: { OriginProtocolPolicy: 'https-only' }
+                CustomOriginConfig: { 
+                  OriginProtocolPolicy: 'https-only',
+                  HTTPPort: 443,
+                  HTTPSPort: 443,
+                  OriginSslProtocols: ['TLSv1.2']
+                }
               }
             ],
             DefaultCacheBehavior: {
@@ -124,7 +129,12 @@ export function buildProxyTemplate(stackName: string, domain: string) {
               ViewerProtocolPolicy: 'redirect-to-https',
               AllowedMethods: ['GET', 'HEAD', 'OPTIONS'],
               CachedMethods: ['GET', 'HEAD', 'OPTIONS'],
-              ForwardedValues: { QueryString: true, Cookies: { Forward: 'all' } },
+              ForwardedValues: { 
+                QueryString: true, 
+                Headers: ['Host', 'Accept', 'Accept-Encoding'],
+                Cookies: { Forward: 'all' } 
+              },
+              Compress: true,
               LambdaFunctionAssociations: [
                 {
                   EventType: 'viewer-request',
