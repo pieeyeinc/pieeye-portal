@@ -115,18 +115,21 @@ export default function DomainsPage() {
   }
 
   const deleteDomain = async (domainId: string) => {
-    if (!confirm('Are you sure you want to delete this domain? This action cannot be undone.')) {
+    if (!confirm('Delete this domain and request teardown of its AWS resources?')) {
       return
     }
 
     setDeleting(domainId)
     try {
-      const response = await fetch(`/api/domains/${domainId}`, {
-        method: 'DELETE',
+      // Request teardown + delete
+      const response = await fetch(`/api/domains/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domainId })
       })
 
       if (response.ok) {
-        toast.success('Domain deleted successfully')
+        toast.success('Teardown started and domain deleted')
         fetchDomains() // Refresh domains
       } else {
         const error = await response.json()
