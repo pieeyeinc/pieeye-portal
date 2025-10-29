@@ -108,6 +108,7 @@ export function buildProxyTemplate(stackName: string, domain: string) {
       },
       Distribution: {
         Type: 'AWS::CloudFront::Distribution',
+        DependsOn: ['EdgeVersion'],
         Properties: {
           DistributionConfig: {
             Enabled: true,
