@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { domain } = await request.json()
+    const { domain, attestOwner } = await request.json()
     
     if (!domain) {
       return NextResponse.json({ error: 'Domain is required' }, { status: 400 })
@@ -113,7 +113,10 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         domain: domain,
         verification_token: verificationToken,
-        status: 'pending'
+        status: attestOwner ? 'verified' : 'pending',
+        attested_owner: !!attestOwner,
+        attested_at: attestOwner ? new Date().toISOString() : null,
+        attested_ip: attestOwner ? (request.headers.get('x-forwarded-for') || '') : null
       })
       .select()
       .single()
@@ -124,7 +127,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       domain: newDomain,
-      message: 'Domain added successfully. Please verify ownership.' 
+      message: attestOwner
+        ? 'Domain attested. You can proceed, but DNS verification is still recommended to bind a custom CNAME.'
+        : 'Domain added successfully. Please verify ownership.' 
     })
   } catch (error) {
     console.error('Add domain error:', error)

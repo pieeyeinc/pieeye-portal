@@ -27,12 +27,14 @@ interface Domain {
   verification_token: string
   verified_at: string | null
   created_at: string
+  attested_owner?: boolean
 }
 
 export default function DomainsPage() {
   const [domains, setDomains] = useState<Domain[]>([])
   const [loading, setLoading] = useState(true)
   const [addingDomain, setAddingDomain] = useState(false)
+  const [attestOwner, setAttestOwner] = useState(false)
   const [verifying, setVerifying] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [newDomain, setNewDomain] = useState('')
@@ -69,13 +71,14 @@ export default function DomainsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ domain: newDomain.trim() }),
+        body: JSON.stringify({ domain: newDomain.trim(), attestOwner }),
       })
 
       if (response.ok) {
         const data = await response.json()
         setDomains([data.domain, ...domains])
         setNewDomain('')
+        setAttestOwner(false)
         toast.success(data.message)
       } else {
         const error = await response.json()
@@ -234,6 +237,18 @@ export default function DomainsPage() {
                   required
                 />
               </div>
+              <div className="flex items-start space-x-2">
+                <input
+                  id="attest"
+                  type="checkbox"
+                  checked={attestOwner}
+                  onChange={(e) => setAttestOwner(e.target.checked)}
+                  className="mt-1"
+                />
+                <Label htmlFor="attest" className="text-sm text-gray-600">
+                  I certify I own this domain. Skip DNS verification for now. Custom CNAME requires DNS later.
+                </Label>
+              </div>
               <Button type="submit" disabled={addingDomain}>
                 {addingDomain ? (
                   <>
@@ -271,6 +286,9 @@ export default function DomainsPage() {
                         <Globe className="h-5 w-5 text-gray-400" />
                         <span className="font-medium text-lg">{domain.domain}</span>
                         {getStatusIcon(domain.status)}
+                        {domain.status === 'verified' && domain.attested_owner && (
+                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Attested</Badge>
+                        )}
                       </div>
                       <div className="flex items-center space-x-2">
                         {getStatusBadge(domain.status)}
