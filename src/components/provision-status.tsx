@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,6 +36,8 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
   const [verifying, setVerifying] = useState(false)
   const [verificationResult, setVerificationResult] = useState<any>(null)
   const [showLogs, setShowLogs] = useState(true)
+  const prevStatusRef = useRef<string | null>(null)
+  const startTsRef = useRef<number | null>(null)
 
   // Poll for status updates
   useEffect(() => {
@@ -48,6 +50,33 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
           const data = await response.json()
           setStatus(data)
           
+          // Track start time and show a friendly completion/failed toast
+          if (data.status === 'CREATE_IN_PROGRESS' && !startTsRef.current) {
+            startTsRef.current = Date.now()
+          }
+
+          if (
+            data.status === 'CREATE_COMPLETE' &&
+            prevStatusRef.current && prevStatusRef.current !== 'CREATE_COMPLETE'
+          ) {
+            const elapsedMs = startTsRef.current ? Date.now() - startTsRef.current : undefined
+            const mins = elapsedMs ? Math.floor(elapsedMs / 60000) : 0
+            const secs = elapsedMs ? Math.round((elapsedMs % 60000) / 1000) : 0
+            const pretty = elapsedMs ? `${mins > 0 ? `${mins}m ` : ''}${secs}s` : undefined
+            toast.success(`Success! Your proxy is ready${pretty ? ` • ${pretty}` : ''}.`)
+            startTsRef.current = null
+          }
+
+          if (
+            /FAILED/.test(data.status || '') &&
+            prevStatusRef.current && /IN_PROGRESS/.test(prevStatusRef.current)
+          ) {
+            toast.error('Provisioning failed. Check the logs below for details.')
+            startTsRef.current = null
+          }
+
+          prevStatusRef.current = data.status
+
           if (onVerificationComplete && data.cloudfrontUrl && data.status === 'CREATE_COMPLETE') {
             onVerificationComplete(data.cloudfrontUrl)
           }
