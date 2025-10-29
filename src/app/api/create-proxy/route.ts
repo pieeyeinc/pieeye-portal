@@ -150,9 +150,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create or update proxy record
-    // Add timestamp to make stack name unique after force reset
-    const timestamp = existingProxy ? '' : `-${Date.now()}`
-    const stackName = `consentgate-${user.id}-${domain.domain.replace(/\./g, '-')}${timestamp}`
+    // Always use a unique timestamp to prevent conflicts
+    const timestamp = Date.now().toString()
+    const stackName = `consentgate-${user.id}-${domain.domain.replace(/\./g, '-')}-${timestamp}`
     const proxyId = existingProxy?.id || uuidv4()
     const correlationId = uuidv4()
 
@@ -176,13 +176,12 @@ export async function POST(request: NextRequest) {
       throw proxyError
     }
 
-    console.log('Proxy record created:', proxyId)
+    console.log('Proxy record created:', proxyId, 'Stack:', stackName)
     await log('info', 'starting proxy build', { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
 
     // Start AWS CloudFormation stack (if credentials available)
     try {
-      const uniqueId = timestamp || undefined
-      const res = await createProxyStack(stackName, domain.domain, uniqueId)
+      const res = await createProxyStack(stackName, domain.domain, timestamp)
       if (res.started) {
         await log('info', 'stack create started (AWS CloudFormation)', { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
       } else {

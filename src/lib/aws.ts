@@ -74,6 +74,10 @@ export function buildProxyTemplate(stackName: string, domain: string, uniqueId?:
     };
   `;
 
+  // Generate unique suffix for all resource names
+  const safeUniqueId = (uniqueId || Date.now().toString()).replace(/[^a-zA-Z0-9-]/g, '-')
+  const resourceSuffix = `${domain.replace(/\./g, '-')}-${safeUniqueId}`
+  
   const template = {
     AWSTemplateFormatVersion: '2010-09-09',
     Description: `ConsentGate proxy for ${domain}`,
@@ -81,6 +85,7 @@ export function buildProxyTemplate(stackName: string, domain: string, uniqueId?:
       EdgeRole: {
         Type: 'AWS::IAM::Role',
         Properties: {
+          RoleName: { 'Fn::Sub': `consentgate-edge-role-${resourceSuffix}` },
           AssumeRolePolicyDocument: {
             Version: '2012-10-17',
             Statement: [
@@ -95,7 +100,7 @@ export function buildProxyTemplate(stackName: string, domain: string, uniqueId?:
       EdgeFunction: {
         Type: 'AWS::Lambda::Function',
         Properties: {
-          FunctionName: { 'Fn::Sub': `consentgate-${domain.replace(/\./g,'-')}${uniqueId ? '-' + uniqueId : ''}` },
+          FunctionName: { 'Fn::Sub': `consentgate-${resourceSuffix}` },
           Handler: 'index.handler',
           Runtime: 'nodejs18.x',
           Role: { 'Fn::GetAtt': ['EdgeRole', 'Arn'] },
