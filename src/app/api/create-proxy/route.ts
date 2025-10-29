@@ -181,7 +181,8 @@ export async function POST(request: NextRequest) {
 
     // Start AWS CloudFormation stack (if credentials available)
     try {
-      const res = await createProxyStack(stackName, domain.domain)
+      const uniqueId = timestamp || undefined
+      const res = await createProxyStack(stackName, domain.domain, uniqueId)
       if (res.started) {
         await log('info', 'stack create started (AWS CloudFormation)', { user_id: user.id, domain_id: domainId, correlation_id: correlationId })
       } else {

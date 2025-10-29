@@ -21,7 +21,7 @@ function getCw(): CloudWatchLogsClient {
 }
 
 // Minimal CloudFormation template: Lambda@Edge + CloudFront with custom origin to GTM
-export function buildProxyTemplate(stackName: string, domain: string) {
+export function buildProxyTemplate(stackName: string, domain: string, uniqueId?: string) {
   const lambdaCode = `
     'use strict';
     exports.handler = async (event) => {
@@ -95,7 +95,7 @@ export function buildProxyTemplate(stackName: string, domain: string) {
       EdgeFunction: {
         Type: 'AWS::Lambda::Function',
         Properties: {
-          FunctionName: { 'Fn::Sub': `consentgate-${domain.replace(/\./g,'-')}` },
+          FunctionName: { 'Fn::Sub': `consentgate-${domain.replace(/\./g,'-')}${uniqueId ? '-' + uniqueId : ''}` },
           Handler: 'index.handler',
           Runtime: 'nodejs18.x',
           Role: { 'Fn::GetAtt': ['EdgeRole', 'Arn'] },
@@ -157,10 +157,10 @@ export function buildProxyTemplate(stackName: string, domain: string) {
   return JSON.stringify(template)
 }
 
-export async function createProxyStack(stackName: string, domain: string) {
+export async function createProxyStack(stackName: string, domain: string, uniqueId?: string) {
   if (!hasAwsCreds()) return { started: false, reason: 'NO_AWS' }
   const cf = getCf()
-  const TemplateBody = buildProxyTemplate(stackName, domain)
+  const TemplateBody = buildProxyTemplate(stackName, domain, uniqueId)
   await cf.send(new CreateStackCommand({
     StackName: stackName,
     Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
