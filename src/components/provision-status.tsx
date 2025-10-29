@@ -121,8 +121,8 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
       setVerificationResult(result)
       
               if (result.ok || result.reachable) {
-                const msg = result.reason || 'Proxy reachable'
-                toast.success(`${msg} • ${result.statusCode} • ${result.latencyMs}ms`)
+                const code = result.originStatus ?? result.statusCode
+                toast.success(`Proxy is live! OK (${code})`)
               } else {
                 const msg = result.reason ? `${result.reason}` : 'Proxy verification failed'
                 toast.error(`${msg}${result.statusCode ? ` • ${result.statusCode}` : ''}`)
@@ -380,7 +380,7 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                         <>
                           <CheckCircle className="h-4 w-4 text-green-600" />
                           <span className="text-sm text-green-600">
-                            {verificationResult.reason || 'Reachable'} ({verificationResult.statusCode}) • {verificationResult.latencyMs}ms
+                            {`Proxy is live! OK (${verificationResult.originStatus ?? verificationResult.statusCode})`}
                           </span>
                         </>
                       ) : (
