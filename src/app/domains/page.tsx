@@ -359,7 +359,12 @@ export default function DomainsPage() {
                           </span>
                         </div>
                         <p className="text-sm text-green-700 mt-1">
-                          Verified on {new Date(domain.verified_at!).toLocaleDateString()}
+                          {domain.verified_at 
+                            ? `Verified on ${new Date(domain.verified_at).toLocaleDateString()}`
+                            : domain.attested_owner 
+                              ? 'Verified via attestation'
+                              : 'Verified'
+                          }
                         </p>
                       </div>
                     )}

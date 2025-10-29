@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
         domain: domain,
         verification_token: verificationToken,
         status: attestOwner ? 'verified' : 'pending',
+        verified_at: attestOwner ? new Date().toISOString() : null,
         attested_owner: !!attestOwner,
         attested_at: attestOwner ? new Date().toISOString() : null,
         attested_ip: attestOwner ? (request.headers.get('x-forwarded-for') || '') : null
