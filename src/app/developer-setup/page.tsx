@@ -655,7 +655,7 @@ export default function DeveloperSetupPage() {
                             <Button size="sm" variant="outline" onClick={() => testProxy(row.domainId)}>
                               Test
                             </Button>
-                            {row.status === 'CREATE_FAILED' && (
+                            {(row.status === 'CREATE_FAILED' || row.status === 'DELETE_FAILED') && (
                               <>
                                 <Button size="sm" variant="destructive" onClick={() => resetProxy(row.domainId)}>
                                   Reset
