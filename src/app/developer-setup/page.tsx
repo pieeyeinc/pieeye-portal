@@ -328,6 +328,24 @@ export default function DeveloperSetupPage() {
     }
   }
 
+  const testProxy = async (domainId: string) => {
+    try {
+      const res = await fetch('/api/verify-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domainId })
+      })
+      const data = await res.json()
+      if (res.ok && data.ok) {
+        toast.success(`Proxy OK • ${data.statusCode} • ${data.latencyMs}ms`)
+      } else {
+        toast.error(`Proxy verification failed${data.statusCode ? ` • ${data.statusCode}` : ''}`)
+      }
+    } catch (e) {
+      toast.error('Proxy verification failed')
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -571,12 +589,13 @@ export default function DeveloperSetupPage() {
                     <th className="py-2 pr-4">CloudFront URL</th>
                     <th className="py-2 pr-4">Lambda ARN</th>
                     <th className="py-2">Status</th>
+                    <th className="py-2 pl-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {proxyRows.length === 0 ? (
                     <tr>
-                      <td className="py-3 pr-4 text-gray-500" colSpan={4}>No proxies found yet.</td>
+                      <td className="py-3 pr-4 text-gray-500" colSpan={5}>No proxies found yet.</td>
                     </tr>
                   ) : (
                     proxyRows.map((row) => (
@@ -600,6 +619,24 @@ export default function DeveloperSetupPage() {
                           <span className="uppercase text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">
                             {row.status}
                           </span>
+                        </td>
+                        <td className="py-3 pl-4">
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => testProxy(row.domainId)}>
+                              Test
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => {
+                              setSelectedDomainId(row.domainId)
+                              if (typeof window !== 'undefined') {
+                                const params = new URLSearchParams(window.location.search)
+                                params.set('domainId', row.domainId)
+                                window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`)
+                                statusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                              }
+                            }}>
+                              View
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))
