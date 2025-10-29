@@ -150,7 +150,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create or update proxy record
-    const stackName = `consentgate-${user.id}-${domain.domain.replace(/\./g, '-')}`
+    // Add timestamp to make stack name unique after force reset
+    const timestamp = existingProxy ? '' : `-${Date.now()}`
+    const stackName = `consentgate-${user.id}-${domain.domain.replace(/\./g, '-')}${timestamp}`
     const proxyId = existingProxy?.id || uuidv4()
     const correlationId = uuidv4()
 
