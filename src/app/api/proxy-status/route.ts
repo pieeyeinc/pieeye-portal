@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabase } from '@/lib/supabase'
-import { getStackStatus } from '@/lib/aws'
+import { getStackStatus, getDistributionDiagnostics } from '@/lib/aws'
 
 export async function GET(request: NextRequest) {
   try {
@@ -131,6 +131,14 @@ export async function GET(request: NextRequest) {
       if (logsError) console.error('Error fetching provision logs:', logsError)
     }
 
+    // Optional diagnostics for CloudFront and Lambda association
+    let diagnostics: any = undefined
+    if (proxy.cloudfront_url) {
+      const domain = proxy.cloudfront_url.replace(/^https?:\/\//, '').replace(/\/$/, '')
+      const diag = await getDistributionDiagnostics(domain, proxy.lambda_arn || undefined)
+      if (diag.ok) diagnostics = diag
+    }
+
     return NextResponse.json({
       status: proxy.disabled ? 'DISABLED' : proxy.stack_status,
       cloudfrontUrl: proxy.cloudfront_url,
@@ -140,7 +148,8 @@ export async function GET(request: NextRequest) {
       disabled: !!proxy.disabled,
       logs: logs || [],
       createdAt: proxy.created_at,
-      updatedAt: proxy.updated_at
+      updatedAt: proxy.updated_at,
+      diagnostics
     })
 
   } catch (error) {

@@ -28,6 +28,14 @@ interface ProxyStatus {
   createdAt: string
   updatedAt: string
   disabled?: boolean
+  diagnostics?: {
+    id?: string
+    domainName?: string
+    deploymentStatus?: string
+    enabled?: boolean
+    viewerRequestArn?: string
+    matchesExpected?: boolean
+  }
 }
 
 export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionStatusProps) {
@@ -318,6 +326,21 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                   <span className="text-gray-800 font-medium">Disabled</span>
                 </div>
                 <p className="text-gray-600 text-sm mt-1">Billing inactive or manually disabled. GTM is no longer served for this domain.</p>
+              </div>
+            )}
+
+            {/* Diagnostics */}
+            {status.diagnostics && (
+              <div className="bg-white border rounded-lg p-3 text-xs text-gray-600">
+                <div className="font-medium mb-1">CloudFront Diagnostics</div>
+                <div>Distribution: {status.diagnostics.id} ({status.diagnostics.domainName})</div>
+                <div>Deployment: {status.diagnostics.deploymentStatus || 'Unknown'} • State: {status.diagnostics.enabled ? 'Enabled' : 'Disabled'}</div>
+                <div>Viewer request ARN: {status.diagnostics.viewerRequestArn || '—'}</div>
+                {typeof status.diagnostics.matchesExpected === 'boolean' && (
+                  <div>
+                    Matches expected Lambda: {status.diagnostics.matchesExpected ? 'Yes' : 'No'}
+                  </div>
+                )}
               </div>
             )}
 

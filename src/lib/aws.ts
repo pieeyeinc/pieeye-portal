@@ -1,4 +1,5 @@
 import { CloudFormationClient, CreateStackCommand, DescribeStacksCommand } from '@aws-sdk/client-cloudformation'
+import { CloudFrontClient, ListDistributionsCommand, GetDistributionCommand } from '@aws-sdk/client-cloudfront'
 
 const REGION = 'us-east-1' // Lambda@Edge requirement
 
@@ -8,6 +9,10 @@ function hasAwsCreds(): boolean {
 
 function getCf(): CloudFormationClient {
   return new CloudFormationClient({ region: REGION })
+}
+
+function getCloudFront(): CloudFrontClient {
+  return new CloudFrontClient({ region: REGION })
 }
 
 // Minimal CloudFormation template: Lambda@Edge + CloudFront with custom origin to GTM
@@ -126,5 +131,42 @@ export async function getStackStatus(stackName: string) {
     if (o.OutputKey && o.OutputValue) outputs[o.OutputKey] = o.OutputValue
   }
   return { ok: true, status: stack.StackStatus, outputs }
+}
+
+export async function getDistributionDiagnostics(domainName: string, expectedLambdaArn?: string) {
+  try {
+    const cf = getCloudFront()
+    // Find distribution by domain name
+    const list = await cf.send(new ListDistributionsCommand({}))
+    const dist = list.DistributionList?.Items?.find((d) => d.DomainName === domainName.replace(/^https?:\/\//, '').replace(/\/$/, ''))
+    if (!dist?.Id) return { ok: false }
+
+    const details = await cf.send(new GetDistributionCommand({ Id: dist.Id }))
+    const status = details.Distribution?.Status // 'Deployed' | 'InProgress'
+    const enabled = details.Distribution?.DistributionConfig?.Enabled
+    const assoc = details.Distribution?.DistributionConfig?.DefaultCacheBehavior?.LambdaFunctionAssociations
+    let viewerRequestArn: string | undefined
+    if (assoc && assoc.Quantity && assoc.Items) {
+      for (const a of assoc.Items) {
+        if (a.EventType === 'viewer-request') {
+          viewerRequestArn = a.LambdaFunctionARN
+          break
+        }
+      }
+    }
+    const matchesExpected = expectedLambdaArn ? viewerRequestArn === expectedLambdaArn : undefined
+
+    return {
+      ok: true,
+      id: dist.Id,
+      domainName: dist.DomainName,
+      deploymentStatus: status,
+      enabled: !!enabled,
+      viewerRequestArn,
+      matchesExpected,
+    }
+  } catch (e) {
+    return { ok: false }
+  }
 }
 
