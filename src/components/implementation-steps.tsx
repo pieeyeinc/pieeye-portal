@@ -22,6 +22,8 @@ interface ImplementationStepsProps {
 
 export function ImplementationSteps({ cloudfrontUrl }: ImplementationStepsProps) {
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set([0]))
+  const [activeCmp, setActiveCmp] = useState<'onetrust' | 'cookiebot' | 'didomi' | 'generic'>('onetrust')
+  const proxyHost = cloudfrontUrl || 'REPLACE_WITH_PROXY_HOST'
 
   const toggleStep = (stepIndex: number) => {
     const newExpanded = new Set(expandedSteps)
@@ -38,32 +40,72 @@ export function ImplementationSteps({ cloudfrontUrl }: ImplementationStepsProps)
     toast.success('Copied to clipboard')
   }
 
+  const headSnippet = `<script>
+  (function(w,d,s,l,i){
+    w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});
+    var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
+    j.async=true;j.src='https://${proxyHost.replace('https://','').replace(/\/$/,'')}/gtm.js?id=' + i + dl;
+    f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-XXXX');
+</script>`
+
+  const bodySnippet = `<noscript><iframe src="https://${proxyHost.replace('https://','').replace(/\/$/,'')}/ns.html?id=GTM-XXXX" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
+
+  const cmpSnippets: Record<typeof activeCmp, string> = {
+    onetrust: `
+<script>
+  function setCG(v){ document.cookie='cg_consent='+(v?1:0)+'; Max-Age=31536000; Path=/; Secure; SameSite=Lax'; }
+  function OptanonWrapper(){
+    const hasPerf = (window.OnetrustActiveGroups||'').indexOf('C0002')>-1; // adjust category
+    setCG(hasPerf);
+  }
+  window.addEventListener('OneTrustGroupsUpdated', OptanonWrapper);
+</script>`.trim(),
+    cookiebot: `
+<script>
+  function setCG(v){ document.cookie='cg_consent='+(v?1:0)+'; Max-Age=31536000; Path=/; Secure; SameSite=Lax'; }
+  window.addEventListener('CookiebotOnAccept', function(){
+    setCG(Cookiebot.consent.statistics || Cookiebot.consent.marketing);
+  });
+  window.addEventListener('CookiebotOnDecline', function(){ setCG(false); });
+</script>`.trim(),
+    didomi: `
+<script>
+  function setCG(v){ document.cookie='cg_consent='+(v?1:0)+'; Max-Age=31536000; Path=/; Secure; SameSite=Lax'; }
+  (function(){
+    function apply(){ try { setCG(window.Didomi?.getUserConsentStatusForPurpose('measure_consent')?.enabled); } catch(e){} }
+    window.didomiOnReady = window.didomiOnReady || []; window.didomiOnReady.push(function(){
+      apply(); Didomi.getObservableOnUserConsentStatusForVendor().subscribe(apply);
+    });
+  })();
+</script>`.trim(),
+    generic: `
+<script>
+  function consentgateAllow(){ document.cookie='cg_consent=1; Max-Age=31536000; Path=/; Secure; SameSite=Lax'; }
+  function consentgateBlock(){ document.cookie='cg_consent=0; Max-Age=31536000; Path=/; Secure; SameSite=Lax'; }
+</script>`.trim()
+  }
+
   const steps = [
     {
       id: 1,
       title: 'Replace Your GTM Script',
       icon: <Code className="h-5 w-5" />,
-      description: 'Replace the original Google Tag Manager script with our consent-aware proxy.',
+      description: 'Replace the original Google Tag Manager snippet with the proxy host.',
       content: (
         <div className="space-y-4">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 mb-2">Replace this:</h4>
-            <code className="block bg-white border rounded p-3 text-sm font-mono">
-              {`<script async src="https://www.googletagmanager.com/gtm.js?id=GTM-XXXXXXX"></script>`}
-            </code>
-          </div>
-          
-          <div className="bg-green-50 rounded-lg p-4">
-            <h4 className="font-medium text-green-900 mb-2">With this:</h4>
-            <div className="flex items-center space-x-2">
-              <code className="flex-1 bg-white border rounded p-3 text-sm font-mono">
-                {`<script async src="${cloudfrontUrl || 'YOUR_CLOUDFRONT_URL'}/gtm.js"></script>`}
-              </code>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => copyToClipboard(`<script async src="${cloudfrontUrl || 'YOUR_CLOUDFRONT_URL'}/gtm.js"></script>`)}
-              >
+          <div className="bg-green-50 rounded-lg p-4 space-y-3">
+            <h4 className="font-medium text-green-900">Head snippet</h4>
+            <div className="flex items-start space-x-2">
+              <code className="flex-1 bg-white border rounded p-3 text-xs font-mono whitespace-pre-wrap">{headSnippet}</code>
+              <Button size="sm" variant="outline" onClick={() => copyToClipboard(headSnippet)}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <h4 className="font-medium text-green-900">Body (noscript)</h4>
+            <div className="flex items-start space-x-2">
+              <code className="flex-1 bg-white border rounded p-3 text-xs font-mono whitespace-pre-wrap">{bodySnippet}</code>
+              <Button size="sm" variant="outline" onClick={() => copyToClipboard(bodySnippet)}>
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
@@ -71,8 +113,8 @@ export function ImplementationSteps({ cloudfrontUrl }: ImplementationStepsProps)
           
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-800">
-              <strong>Why this works:</strong> This replaces the original Google Tag Manager script, 
-              ensuring scripts only fire after user consent is given.
+              <strong>Why this works:</strong> Requests to GTM are routed through your proxy. The edge function
+              blocks until the `cg_consent=1` cookie is set by your CMP, then allows GTM.
             </p>
           </div>
         </div>
@@ -82,75 +124,21 @@ export function ImplementationSteps({ cloudfrontUrl }: ImplementationStepsProps)
       id: 2,
       title: 'Connect Your CMP',
       icon: <Settings className="h-5 w-5" />,
-      description: 'Configure your Consent Management Platform to work with ConsentGate.',
+      description: 'Paste a tiny bridge so your CMP sets cg_consent when users accept.',
       content: (
         <div className="space-y-4">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 mb-3">Add this configuration to your site:</h4>
-            <div className="space-y-3">
-              <div>
-                <h5 className="font-medium text-sm text-gray-700 mb-1">OneTrust</h5>
-                <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-white border rounded p-2 text-sm font-mono">
-                    {`window.consentgate = { cmp: "onetrust", consentCookie: "OptanonConsent" };`}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard('window.consentgate = { cmp: "onetrust", consentCookie: "OptanonConsent" };')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div>
-                <h5 className="font-medium text-sm text-gray-700 mb-1">Didomi</h5>
-                <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-white border rounded p-2 text-sm font-mono">
-                    {`window.consentgate = { cmp: "didomi", consentCookie: "didomi_token" };`}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard('window.consentgate = { cmp: "didomi", consentCookie: "didomi_token" };')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div>
-                <h5 className="font-medium text-sm text-gray-700 mb-1">Cookiebot</h5>
-                <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-white border rounded p-2 text-sm font-mono">
-                    {`window.consentgate = { cmp: "cookiebot", consentCookie: "CookieConsent" };`}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard('window.consentgate = { cmp: "cookiebot", consentCookie: "CookieConsent" };')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div>
-                <h5 className="font-medium text-sm text-gray-700 mb-1">PieEye CMP</h5>
-                <div className="flex items-center space-x-2">
-                  <code className="flex-1 bg-white border rounded p-2 text-sm font-mono">
-                    {`window.consentgate = { cmp: "pieeye", consentCookie: "cg_consent" };`}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard('window.consentgate = { cmp: "pieeye", consentCookie: "cg_consent" };')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant={activeCmp==='onetrust'?'default':'outline'} onClick={()=>setActiveCmp('onetrust')}>OneTrust</Button>
+              <Button size="sm" variant={activeCmp==='cookiebot'?'default':'outline'} onClick={()=>setActiveCmp('cookiebot')}>Cookiebot</Button>
+              <Button size="sm" variant={activeCmp==='didomi'?'default':'outline'} onClick={()=>setActiveCmp('didomi')}>Didomi</Button>
+              <Button size="sm" variant={activeCmp==='generic'?'default':'outline'} onClick={()=>setActiveCmp('generic')}>Generic</Button>
+            </div>
+            <div className="flex items-start space-x-2">
+              <code className="flex-1 bg-white border rounded p-3 text-xs font-mono whitespace-pre-wrap">{cmpSnippets[activeCmp]}</code>
+              <Button size="sm" variant="outline" onClick={() => copyToClipboard(cmpSnippets[activeCmp])}>
+                <Copy className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           
@@ -216,7 +204,7 @@ export function ImplementationSteps({ cloudfrontUrl }: ImplementationStepsProps)
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900">Implementation Steps</h3>
+      <h3 className="text-lg font-semibold text-gray-900">Install in 2 minutes</h3>
       
       {steps.map((step, index) => (
         <Card key={step.id} className="overflow-hidden">
