@@ -81,6 +81,33 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Handle delete polling: if stack is gone or DELETE_COMPLETE, mark local as deleted
+    if (proxy.stack_status === 'DELETE_IN_PROGRESS' && proxy.stack_name) {
+      try {
+        const aws = await getStackStatus(proxy.stack_name)
+        if (!aws.ok || aws.status === 'DELETE_COMPLETE') {
+          await supabase
+            .from('proxies')
+            .update({ stack_status: 'DELETE_COMPLETE', updated_at: new Date().toISOString() })
+            .eq('id', proxy.id)
+          proxy.stack_status = 'DELETE_COMPLETE'
+        } else if (/FAILED/i.test(aws.status || '')) {
+          await supabase
+            .from('proxies')
+            .update({ stack_status: 'DELETE_FAILED', updated_at: new Date().toISOString() })
+            .eq('id', proxy.id)
+          proxy.stack_status = 'DELETE_FAILED'
+        }
+      } catch (e) {
+        // If DescribeStacks throws because stack not found, treat as deleted
+        await supabase
+          .from('proxies')
+          .update({ stack_status: 'DELETE_COMPLETE', updated_at: new Date().toISOString() })
+          .eq('id', proxy.id)
+        proxy.stack_status = 'DELETE_COMPLETE'
+      }
+    }
+
     // Fetch last ~20 logs filtered by latest correlation_id for this domain
     // First get latest correlation_id for this domain
     const { data: latest } = await supabase
