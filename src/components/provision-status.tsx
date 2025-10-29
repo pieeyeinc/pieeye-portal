@@ -428,7 +428,7 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                   </ul>
                 )}
                 {detectedGtm && (
-                  <div className="text-xs text-gray-600 mt-2">
+                  <div className="text-xs text-gray-600 mt-2 space-y-1">
                     {detectedGtm.primary ? (
                       <div>
                         Suggested GTM ID: <span className="font-medium">{detectedGtm.primary}</span>
@@ -438,6 +438,32 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                       </div>
                     ) : (
                       <div>No GTM ID detected from site HTML.</div>
+                    )}
+                    {detectedGtm.primary && (
+                      <div>
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch('/api/domains/set-gtm', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ domainId: (status as any).domainId || domainId, gtmId: detectedGtm.primary })
+                              })
+                              if (res.ok) {
+                                toast.success('Saved GTM container ID to your domain')
+                              } else {
+                                const e = await res.json()
+                                toast.error(e.error || 'Failed to save GTM ID')
+                              }
+                            } catch {
+                              toast.error('Failed to save GTM ID')
+                            }
+                          }}
+                        >
+                          Save to domain
+                        </Button>
+                      </div>
                     )}
                   </div>
                 )}
