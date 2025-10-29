@@ -117,6 +117,45 @@ export function ImplementationSteps({ cloudfrontUrl }: ImplementationStepsProps)
               blocks until the `cg_consent=1` cookie is set by your CMP, then allows GTM.
             </p>
           </div>
+          
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <details className="group">
+              <summary className="cursor-pointer flex items-center justify-between font-medium text-gray-900">
+                <span>Why use a custom domain? (Optional)</span>
+                <ChevronDown className="h-4 w-4 text-gray-500 group-open:rotate-180 transition-transform" />
+              </summary>
+              <div className="mt-3 space-y-3 text-sm text-gray-700">
+                <p>
+                  The proxy works immediately with the CloudFront URL. A custom domain (like <code className="bg-white px-1 py-0.5 rounded text-xs">gtm.yourdomain.com</code>) is optional but recommended because:
+                </p>
+                <div className="space-y-2">
+                  <div className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <strong>Better for users</strong> - Looks more professional and trustworthy
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <strong>Fewer blocks</strong> - Ad blockers are less likely to block your own domain
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <strong>Easier to change</strong> - If you need to switch providers later, you only update DNS
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                  <p className="text-yellow-800">
+                    <strong>Quick start:</strong> Use the CloudFront URL now, add the custom domain later when convenient.
+                  </p>
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
       )
     },
