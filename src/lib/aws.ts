@@ -1,5 +1,6 @@
 import { CloudFormationClient, CreateStackCommand, DescribeStacksCommand } from '@aws-sdk/client-cloudformation'
 import { CloudFrontClient, ListDistributionsCommand, GetDistributionCommand } from '@aws-sdk/client-cloudfront'
+import { CloudWatchLogsClient, FilterLogEventsCommand } from '@aws-sdk/client-cloudwatch-logs'
 
 const REGION = 'us-east-1' // Lambda@Edge requirement
 
@@ -13,6 +14,10 @@ function getCf(): CloudFormationClient {
 
 function getCloudFront(): CloudFrontClient {
   return new CloudFrontClient({ region: REGION })
+}
+
+function getCw(): CloudWatchLogsClient {
+  return new CloudWatchLogsClient({ region: REGION })
 }
 
 // Minimal CloudFormation template: Lambda@Edge + CloudFront with custom origin to GTM
@@ -165,6 +170,34 @@ export async function getDistributionDiagnostics(domainName: string, expectedLam
       viewerRequestArn,
       matchesExpected,
     }
+  } catch (e) {
+    return { ok: false }
+  }
+}
+
+export async function getLambdaErrorLogs(lambdaArn: string, limit: number = 10) {
+  try {
+    // Parse function name from ARN: arn:aws:lambda:us-east-1:acct:function:name[:version]
+    const parts = lambdaArn.split(':')
+    const fnIndex = parts.findIndex((p) => p === 'function')
+    if (fnIndex < 0 || !parts[fnIndex + 1]) return { ok: false }
+    const functionName = parts[fnIndex + 1]
+    const logGroupName = `/aws/lambda/${functionName}`
+
+    const cw = getCw()
+    const res = await cw.send(
+      new FilterLogEventsCommand({
+        logGroupName,
+        filterPattern: '?ERROR ?Exception ?"Task timed out"',
+        limit,
+      })
+    )
+    const events = (res.events || []).map((e) => ({
+      message: e.message || '',
+      timestamp: e.timestamp || 0,
+      logStreamName: e.logStreamName || '',
+    }))
+    return { ok: true, events }
   } catch (e) {
     return { ok: false }
   }
