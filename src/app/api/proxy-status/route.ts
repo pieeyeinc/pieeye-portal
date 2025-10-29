@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabase } from '@/lib/supabase'
-import { getStackStatus, getDistributionDiagnostics } from '@/lib/aws'
+import { getStackStatus, getDistributionDiagnostics, getLambdaErrorLogs } from '@/lib/aws'
 
 export async function GET(request: NextRequest) {
   try {
@@ -133,10 +133,16 @@ export async function GET(request: NextRequest) {
 
     // Optional diagnostics for CloudFront and Lambda association
     let diagnostics: any = undefined
+    let lambdaErrors: any = undefined
     if (proxy.cloudfront_url) {
       const domain = proxy.cloudfront_url.replace(/^https?:\/\//, '').replace(/\/$/, '')
       const diag = await getDistributionDiagnostics(domain, proxy.lambda_arn || undefined)
       if (diag.ok) diagnostics = diag
+    }
+
+    if (proxy.lambda_arn) {
+      const logs = await getLambdaErrorLogs(proxy.lambda_arn, 5)
+      if (logs.ok) lambdaErrors = logs.events
     }
 
     return NextResponse.json({
@@ -149,7 +155,8 @@ export async function GET(request: NextRequest) {
       logs: logs || [],
       createdAt: proxy.created_at,
       updatedAt: proxy.updated_at,
-      diagnostics
+      diagnostics,
+      lambdaErrors
     })
 
   } catch (error) {

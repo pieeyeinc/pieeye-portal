@@ -36,6 +36,7 @@ interface ProxyStatus {
     viewerRequestArn?: string
     matchesExpected?: boolean
   }
+  lambdaErrors?: { message: string; timestamp: number; logStreamName: string }[]
 }
 
 export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionStatusProps) {
@@ -343,6 +344,19 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                     Matches expected Lambda: {status.diagnostics.matchesExpected ? 'Yes' : 'No'}
                   </div>
                 )}
+              </div>
+            )}
+
+            {status.lambdaErrors && status.lambdaErrors.length > 0 && (
+              <div className="bg-white border rounded-lg p-3 text-xs text-red-700">
+                <div className="font-medium mb-1">Recent Lambda@Edge errors</div>
+                <ul className="list-disc list-inside space-y-1">
+                  {status.lambdaErrors.map((e, i) => (
+                    <li key={i}>
+                      {new Date(e.timestamp).toLocaleTimeString()} — {e.message.trim()}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
