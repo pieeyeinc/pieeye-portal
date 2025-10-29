@@ -18,9 +18,10 @@ import { toast } from 'sonner'
 
 interface ImplementationStepsProps {
   cloudfrontUrl?: string
+  gtmId?: string
 }
 
-export function ImplementationSteps({ cloudfrontUrl }: ImplementationStepsProps) {
+export function ImplementationSteps({ cloudfrontUrl, gtmId }: ImplementationStepsProps) {
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set([0]))
   const [activeCmp, setActiveCmp] = useState<'onetrust' | 'cookiebot' | 'didomi' | 'generic'>('onetrust')
   const proxyHost = cloudfrontUrl || 'REPLACE_WITH_PROXY_HOST'
@@ -40,16 +41,17 @@ export function ImplementationSteps({ cloudfrontUrl }: ImplementationStepsProps)
     toast.success('Copied to clipboard')
   }
 
+  const gtmContainerId = gtmId || 'GTM-XXXX'
   const headSnippet = `<script>
   (function(w,d,s,l,i){
     w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});
     var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
     j.async=true;j.src='https://${proxyHost.replace('https://','').replace(/\/$/,'')}/gtm.js?id=' + i + dl;
     f.parentNode.insertBefore(j,f);
-  })(window,document,'script','dataLayer','GTM-XXXX');
+  })(window,document,'script','dataLayer','${gtmContainerId}');
 </script>`
 
-  const bodySnippet = `<noscript><iframe src="https://${proxyHost.replace('https://','').replace(/\/$/,'')}/ns.html?id=GTM-XXXX" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
+  const bodySnippet = `<noscript><iframe src="https://${proxyHost.replace('https://','').replace(/\/$/,'')}/ns.html?id=${gtmContainerId}" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
 
   const cmpSnippets: Record<typeof activeCmp, string> = {
     onetrust: `

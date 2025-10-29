@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 interface ProvisionStatusProps {
   domainId: string
   onVerificationComplete?: (cloudfrontUrl: string) => void
+  onGtmDetected?: (gtmId: string) => void
 }
 
 interface ProxyStatus {
@@ -39,7 +40,7 @@ interface ProxyStatus {
   lambdaErrors?: { message: string; timestamp: number; logStreamName: string }[]
 }
 
-export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionStatusProps) {
+export function ProvisionStatus({ domainId, onVerificationComplete, onGtmDetected }: ProvisionStatusProps) {
   const [status, setStatus] = useState<ProxyStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
@@ -453,6 +454,7 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                         setDetectedGtm({ ids: data.ids || [], primary: data.primary || null })
                         if (data.primary) {
                           toast.success(`Detected GTM: ${data.primary}`)
+                          onGtmDetected?.(data.primary)
                         } else {
                           toast.error('No GTM container ID detected')
                         }

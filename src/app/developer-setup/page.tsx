@@ -47,6 +47,7 @@ export default function DeveloperSetupPage() {
   const [provisioning, setProvisioning] = useState<string | null>(null)
   const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null)
   const [cloudfrontUrl, setCloudfrontUrl] = useState<string | null>(null)
+  const [detectedGtmId, setDetectedGtmId] = useState<string | null>(null)
   const [proxyRows, setProxyRows] = useState<ProxyRow[]>([])
   const statusRef = useRef<HTMLDivElement | null>(null)
 
@@ -168,6 +169,10 @@ export default function DeveloperSetupPage() {
 
   const handleVerificationComplete = (url: string) => {
     setCloudfrontUrl(url)
+  }
+
+  const handleGtmDetected = (gtmId: string) => {
+    setDetectedGtmId(gtmId)
   }
 
   const getStatusBadge = (status: string) => {
@@ -590,6 +595,7 @@ export default function DeveloperSetupPage() {
             <ProvisionStatus 
               domainId={selectedDomainId}
               onVerificationComplete={handleVerificationComplete}
+              onGtmDetected={handleGtmDetected}
             />
           </div>
         )}
@@ -673,7 +679,7 @@ export default function DeveloperSetupPage() {
 
         {/* Implementation Steps */}
         {cloudfrontUrl && (
-          <ImplementationSteps cloudfrontUrl={cloudfrontUrl} />
+          <ImplementationSteps cloudfrontUrl={cloudfrontUrl} gtmId={detectedGtmId || undefined} />
         )}
 
         {/* Help Section */}
