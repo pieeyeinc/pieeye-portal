@@ -46,6 +46,8 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
   const [showLogs, setShowLogs] = useState(true)
   const prevStatusRef = useRef<string | null>(null)
   const startTsRef = useRef<number | null>(null)
+  const [detectedGtm, setDetectedGtm] = useState<{ ids: string[]; primary?: string | null } | null>(null)
+  const [detecting, setDetecting] = useState(false)
 
   // Poll for status updates
   useEffect(() => {
@@ -374,6 +376,30 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                       'Test Proxy'
                     )}
                   </Button>
+                  <Button
+                    onClick={async () => {
+                      setDetecting(true)
+                      try {
+                        const res = await fetch(`/api/discover-gtm?domain=${encodeURIComponent((status as any).domain)}`)
+                        const data = await res.json()
+                        setDetectedGtm({ ids: data.ids || [], primary: data.primary || null })
+                        if (data.primary) {
+                          toast.success(`Detected GTM: ${data.primary}`)
+                        } else {
+                          toast.error('No GTM container ID detected')
+                        }
+                      } catch {
+                        toast.error('Failed to detect GTM ID')
+                      } finally {
+                        setDetecting(false)
+                      }
+                    }}
+                    disabled={detecting}
+                    size="sm"
+                    variant="outline"
+                  >
+                    {detecting ? 'Detecting…' : 'Detect GTM ID'}
+                  </Button>
                   {verificationResult && (
                     <div className="flex items-center space-x-2">
                       {(verificationResult.ok || verificationResult.reachable) ? (
@@ -400,6 +426,20 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                       <li key={i}>{t}</li>
                     ))}
                   </ul>
+                )}
+                {detectedGtm && (
+                  <div className="text-xs text-gray-600 mt-2">
+                    {detectedGtm.primary ? (
+                      <div>
+                        Suggested GTM ID: <span className="font-medium">{detectedGtm.primary}</span>
+                        {detectedGtm.ids.length > 1 && (
+                          <span> (others: {detectedGtm.ids.filter((x) => x !== detectedGtm.primary).join(', ')})</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div>No GTM ID detected from site HTML.</div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
