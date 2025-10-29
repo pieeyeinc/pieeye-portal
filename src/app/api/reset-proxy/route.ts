@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { domainId } = await request.json()
+    const { domainId, force } = await request.json()
     if (!domainId) return NextResponse.json({ error: 'Domain ID is required' }, { status: 400 })
 
     // Lookup user
@@ -31,22 +31,51 @@ export async function POST(request: NextRequest) {
     if (!proxy) return NextResponse.json({ error: 'Proxy not found' }, { status: 404 })
 
     // Initiate stack delete (best-effort)
+    let awsDeleteResult = 'skipped'
     try {
       if (proxy.stack_name && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
         const cf = new CloudFormationClient({ region: 'us-east-1' })
         await cf.send(new DeleteStackCommand({ StackName: proxy.stack_name }))
+        awsDeleteResult = 'success'
+      } else {
+        awsDeleteResult = 'no_credentials'
       }
-    } catch (e) {
-      // Non-fatal; we still allow DB reset and re-create
+    } catch (e: any) {
+      // If stack is in progress, AWS may block deletion - that's OK, just mark for deletion
+      console.log('AWS delete stack error:', e.message)
+      awsDeleteResult = e.message?.includes('IN_PROGRESS') ? 'deployment_in_progress' : 'error'
     }
 
-    // Mark as deleting to avoid confusion while AWS tears down
-    await supabase
-      .from('proxies')
-      .update({ stack_status: 'DELETE_IN_PROGRESS', cloudfront_url: null, lambda_arn: null, updated_at: new Date().toISOString() })
-      .eq('id', proxy.id)
+    // Always update DB to allow re-creation, even if AWS delete failed
+    if (force) {
+      // Force reset: delete the proxy record entirely to allow re-creation
+      const { error: deleteError } = await supabase
+        .from('proxies')
+        .delete()
+        .eq('id', proxy.id)
+      
+      if (deleteError) {
+        return NextResponse.json({ error: deleteError.message }, { status: 500 })
+      }
+      
+      return NextResponse.json({ ok: true, message: 'Proxy record deleted. You can create a new one now.' })
+    } else {
+      const { error: updateError } = await supabase
+        .from('proxies')
+        .update({ 
+          stack_status: awsDeleteResult === 'deployment_in_progress' ? 'CREATE_IN_PROGRESS' : 'DELETE_IN_PROGRESS', 
+          cloudfront_url: null, 
+          lambda_arn: null, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', proxy.id)
+      
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 })
+      }
 
-    return NextResponse.json({ ok: true, message: 'Reset started. Stack delete requested; you can try creating again shortly.' })
+      return NextResponse.json({ ok: true, message: 'Reset started. Stack delete requested; you can try creating again shortly.' })
+    }
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

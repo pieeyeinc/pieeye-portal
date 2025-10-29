@@ -351,16 +351,21 @@ export default function DeveloperSetupPage() {
     }
   }
 
-  const resetProxy = async (domainId: string) => {
+  const resetProxy = async (domainId: string, force: boolean = false) => {
+    if (force && typeof window !== 'undefined') {
+      const confirmMsg = 'Force reset will delete the proxy record and allow you to create a new one immediately. AWS resources will remain until manually cleaned up. Continue?'
+      if (!window.confirm(confirmMsg)) return
+    }
+    
     try {
       const res = await fetch('/api/reset-proxy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domainId })
+        body: JSON.stringify({ domainId, force })
       })
       const data = await res.json()
       if (res.ok) {
-        toast.success('Reset started. You can try creating again shortly.')
+        toast.success(data.message || 'Reset started. You can try creating again shortly.')
         setTimeout(() => fetchData(), 1500)
       } else {
         toast.error(data.error || 'Failed to reset proxy')
@@ -651,9 +656,14 @@ export default function DeveloperSetupPage() {
                               Test
                             </Button>
                             {row.status === 'CREATE_FAILED' && (
-                              <Button size="sm" variant="destructive" onClick={() => resetProxy(row.domainId)}>
-                                Reset
-                              </Button>
+                              <>
+                                <Button size="sm" variant="destructive" onClick={() => resetProxy(row.domainId)}>
+                                  Reset
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => resetProxy(row.domainId, true)} title="Force reset: delete record and allow immediate re-creation">
+                                  Force Reset
+                                </Button>
+                              </>
                             )}
                             <Button size="sm" variant="outline" onClick={() => {
                               setSelectedDomainId(row.domainId)
