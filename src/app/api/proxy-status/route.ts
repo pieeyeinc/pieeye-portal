@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabase } from '@/lib/supabase'
-import { getStackStatus, getDistributionDiagnostics, getLambdaErrorLogs } from '@/lib/aws'
+import { getStackStatus, getDistributionDiagnostics } from '@/lib/aws'
 
 export async function GET(request: NextRequest) {
   try {
@@ -141,8 +141,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (proxy.lambda_arn) {
-      const logs = await getLambdaErrorLogs(proxy.lambda_arn, 5)
-      if (logs.ok) lambdaErrors = logs.events
+      try {
+        const aws = await import('@/lib/aws') as any
+        if (aws.getLambdaErrorLogs) {
+          const logs = await aws.getLambdaErrorLogs(proxy.lambda_arn, 5)
+          if (logs.ok) lambdaErrors = logs.events
+        }
+      } catch {}
     }
 
     return NextResponse.json({
