@@ -346,6 +346,25 @@ export default function DeveloperSetupPage() {
     }
   }
 
+  const resetProxy = async (domainId: string) => {
+    try {
+      const res = await fetch('/api/reset-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domainId })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success('Reset started. You can try creating again shortly.')
+        setTimeout(() => fetchData(), 1500)
+      } else {
+        toast.error(data.error || 'Failed to reset proxy')
+      }
+    } catch (e) {
+      toast.error('Failed to reset proxy')
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -625,6 +644,11 @@ export default function DeveloperSetupPage() {
                             <Button size="sm" variant="outline" onClick={() => testProxy(row.domainId)}>
                               Test
                             </Button>
+                            {row.status === 'CREATE_FAILED' && (
+                              <Button size="sm" variant="destructive" onClick={() => resetProxy(row.domainId)}>
+                                Reset
+                              </Button>
+                            )}
                             <Button size="sm" variant="outline" onClick={() => {
                               setSelectedDomainId(row.domainId)
                               if (typeof window !== 'undefined') {
