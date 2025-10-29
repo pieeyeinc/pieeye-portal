@@ -419,6 +419,33 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                   </Button>
                   <Button
                     onClick={async () => {
+                      setVerifying(true)
+                      try {
+                        const response = await fetch('/api/test-origin', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ domainId }),
+                        })
+                        const result = await response.json()
+                        if (result.ok) {
+                          toast.success(`GTM Origin test: ${result.status} (${result.latencyMs}ms)`)
+                        } else {
+                          toast.error(`Origin test failed: ${result.error}`)
+                        }
+                      } catch (error) {
+                        toast.error('Origin test failed')
+                      } finally {
+                        setVerifying(false)
+                      }
+                    }}
+                    disabled={verifying}
+                    size="sm"
+                    variant="outline"
+                  >
+                    Test GTM Origin
+                  </Button>
+                  <Button
+                    onClick={async () => {
                       setDetecting(true)
                       try {
                         const res = await fetch(`/api/discover-gtm?domain=${encodeURIComponent((status as any).domain)}`)

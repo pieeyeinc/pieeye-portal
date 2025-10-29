@@ -30,13 +30,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Proxy not ready' }, { status: 400 })
     }
 
-    // Test CloudFront distribution directly (bypassing Lambda@Edge)
-    const baseUrl = proxy.cloudfront_url.replace(/\/$/, '')
-    // Test with a path that should exist on GTM origin - use a real GTM container ID
-    const testUrl = `${baseUrl}/gtm.js?id=GTM-5MN4MDN`
+    // Test the GTM origin directly (bypass CloudFront entirely)
+    const gtmUrl = 'https://www.googletagmanager.com/gtm.js?id=GTM-5MN4MDN'
     
     const started = Date.now()
-    const response = await fetch(testUrl, { 
+    const response = await fetch(gtmUrl, { 
       method: 'GET',
       headers: { 
         'User-Agent': 'ConsentGate-Test/1.0',
@@ -45,19 +43,12 @@ export async function POST(request: NextRequest) {
     })
     const latencyMs = Date.now() - started
 
-    const xCache = response.headers.get('x-cache') || null
-    const cfRay = response.headers.get('x-amz-cf-id') || null
-    const cfStatus = response.headers.get('x-amz-cf-status') || null
-
     return NextResponse.json({
       ok: true,
-      url: testUrl,
+      url: gtmUrl,
       status: response.status,
       statusText: response.statusText,
       latencyMs,
-      xCache,
-      cfRay,
-      cfStatus,
       reachable: response.status < 500,
       headers: Object.fromEntries(response.headers.entries())
     })
