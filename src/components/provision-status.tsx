@@ -20,7 +20,7 @@ interface ProvisionStatusProps {
 }
 
 interface ProxyStatus {
-  status: 'pending' | 'creating' | 'completed' | 'failed' | 'DISABLED'
+  status: 'PENDING' | 'CREATE_IN_PROGRESS' | 'CREATE_COMPLETE' | 'CREATE_FAILED' | 'DELETE_IN_PROGRESS' | 'DELETE_COMPLETE' | 'DELETE_FAILED' | 'DISABLED'
   cloudfrontUrl?: string
   lambdaArn?: string
   logs?: { message: string; level: 'info' | 'warn' | 'error'; created_at: string }[]
@@ -48,7 +48,7 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
           const data = await response.json()
           setStatus(data)
           
-          if (data.status === 'completed' && onVerificationComplete) {
+          if (onVerificationComplete && data.cloudfrontUrl && data.status === 'CREATE_COMPLETE') {
             onVerificationComplete(data.cloudfrontUrl)
           }
         }
@@ -104,11 +104,11 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
     switch (status) {
       case 'DISABLED':
         return <AlertCircle className="h-5 w-5 text-gray-500" />
-      case 'completed':
+      case 'CREATE_COMPLETE':
         return <CheckCircle className="h-5 w-5 text-green-600" />
-      case 'creating':
+      case 'CREATE_IN_PROGRESS':
         return <RefreshCw className="h-5 w-5 text-blue-600 animate-spin" />
-      case 'failed':
+      case 'CREATE_FAILED':
         return <AlertCircle className="h-5 w-5 text-red-600" />
       default:
         return <Clock className="h-5 w-5 text-gray-400" />
@@ -123,21 +123,21 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
             Disabled
           </Badge>
         )
-      case 'completed':
+      case 'CREATE_COMPLETE':
         return (
           <Badge className="bg-green-100 text-green-800">
             <CheckCircle className="h-3 w-3 mr-1" />
             Ready
           </Badge>
         )
-      case 'creating':
+      case 'CREATE_IN_PROGRESS':
         return (
           <Badge variant="secondary" className="bg-blue-100 text-blue-800">
             <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
             Creating
           </Badge>
         )
-      case 'failed':
+      case 'CREATE_FAILED':
         return (
           <Badge variant="destructive" className="bg-red-100 text-red-800">
             <AlertCircle className="h-3 w-3 mr-1" />
@@ -295,7 +295,7 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
             )}
 
             {/* Verification */}
-            {status.status === 'completed' && status.cloudfrontUrl && (
+            {status.status === 'CREATE_COMPLETE' && status.cloudfrontUrl && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-gray-700">Verification</h4>
                 <div className="flex items-center space-x-2">
