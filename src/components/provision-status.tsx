@@ -69,7 +69,7 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
     return () => clearInterval(interval)
   }, [domainId, status?.status, onVerificationComplete])
 
-  const handleVerify = async () => {
+          const handleVerify = async () => {
     setVerifying(true)
     try {
       const response = await fetch('/api/verify-proxy', {
@@ -83,11 +83,13 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
       const result = await response.json()
       setVerificationResult(result)
       
-      if (result.ok) {
-        toast.success('Proxy verification successful!')
-      } else {
-        toast.error('Proxy verification failed')
-      }
+              if (result.ok || result.reachable) {
+                const msg = result.reason || 'Proxy reachable'
+                toast.success(`${msg} • ${result.statusCode} • ${result.latencyMs}ms`)
+              } else {
+                const msg = result.reason ? `${result.reason}` : 'Proxy verification failed'
+                toast.error(`${msg}${result.statusCode ? ` • ${result.statusCode}` : ''}`)
+              }
     } catch (error) {
       toast.error('Failed to verify proxy')
     } finally {
@@ -320,27 +322,33 @@ export function ProvisionStatus({ domainId, onVerificationComplete }: ProvisionS
                       'Test Proxy'
                     )}
                   </Button>
-                  
                   {verificationResult && (
                     <div className="flex items-center space-x-2">
-                      {verificationResult.ok ? (
+                      {(verificationResult.ok || verificationResult.reachable) ? (
                         <>
                           <CheckCircle className="h-4 w-4 text-green-600" />
                           <span className="text-sm text-green-600">
-                            Working ({verificationResult.latencyMs}ms)
+                            {verificationResult.reason || 'Reachable'} ({verificationResult.statusCode}) • {verificationResult.latencyMs}ms
                           </span>
                         </>
                       ) : (
                         <>
                           <AlertCircle className="h-4 w-4 text-red-600" />
                           <span className="text-sm text-red-600">
-                            Failed (Status: {verificationResult.statusCode})
+                            {verificationResult.reason || 'Failed'}{verificationResult.statusCode ? ` (Status: ${verificationResult.statusCode})` : ''}
                           </span>
                         </>
                       )}
                     </div>
                   )}
                 </div>
+                {verificationResult?.tips?.length > 0 && (
+                  <ul className="list-disc list-inside text-xs text-gray-500 mt-1">
+                    {verificationResult.tips.map((t: string, i: number) => (
+                      <li key={i}>{t}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
           </div>
