@@ -375,6 +375,30 @@ export default function DeveloperSetupPage() {
     }
   }
 
+  const cleanupStack = async (domainId: string) => {
+    if (typeof window !== 'undefined') {
+      const confirmMsg = 'This will delete the AWS CloudFormation stack. After deletion, wait a few minutes before creating a new proxy. Continue?'
+      if (!window.confirm(confirmMsg)) return
+    }
+    
+    try {
+      const res = await fetch('/api/cleanup-stack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domainId })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.message)
+        setTimeout(() => fetchData(), 1500)
+      } else {
+        toast.error(data.error || 'Failed to cleanup stack')
+      }
+    } catch (e) {
+      toast.error('Failed to cleanup stack')
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -662,6 +686,9 @@ export default function DeveloperSetupPage() {
                                 </Button>
                                 <Button size="sm" variant="outline" onClick={() => resetProxy(row.domainId, true)} title="Force reset: delete record and allow immediate re-creation">
                                   Force Reset
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => cleanupStack(row.domainId)} title="Cleanup AWS stack">
+                                  Cleanup Stack
                                 </Button>
                               </>
                             )}
