@@ -706,6 +706,13 @@ export default function DeveloperSetupPage() {
                             <Button size="sm" variant="outline" onClick={() => testProxy(row.domainId)}>
                               Test
                             </Button>
+                            {(row.status === 'CREATE_FAILED' || row.status === 'DELETE_FAILED' || row.status === 'CREATE_IN_PROGRESS') && (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => viewStackEvents(row.domainId)} title="View CloudFormation events">
+                                  View Events
+                                </Button>
+                              </>
+                            )}
                             {(row.status === 'CREATE_FAILED' || row.status === 'DELETE_FAILED') && (
                               <>
                                 <Button size="sm" variant="destructive" onClick={() => resetProxy(row.domainId)}>
@@ -716,9 +723,6 @@ export default function DeveloperSetupPage() {
                                 </Button>
                                 <Button size="sm" variant="outline" onClick={() => cleanupStack(row.domainId)} title="Cleanup AWS stack">
                                   Cleanup Stack
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => viewStackEvents(row.domainId)} title="View CloudFormation events">
-                                  View Events
                                 </Button>
                               </>
                             )}
