@@ -125,8 +125,7 @@ export function buildProxyTemplate(stackName: string, domain: string, uniqueId?:
                 CustomOriginConfig: { 
                   OriginProtocolPolicy: 'https-only',
                   HTTPPort: 443,
-                  HTTPSPort: 443,
-                  OriginSslProtocols: ['TLSv1.2']
+                  HTTPSPort: 443
                 }
               }
             ],
