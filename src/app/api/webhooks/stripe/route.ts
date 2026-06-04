@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
 import { stripe } from '@/lib/stripe'
 import { supabase } from '@/lib/supabase'
 import Stripe from 'stripe'
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
       process.env.STRIPE_WEBHOOK_SECRET!
     )
   } catch (err) {
-    console.error('Webhook signature verification failed:', err)
+    logger.error('Webhook signature verification failed:', err)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
         const plan = session.metadata?.plan
 
         if (!userId || !plan) {
-          console.error('Missing metadata in checkout session')
+          logger.error('Missing metadata in checkout session')
           break
         }
 
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString()
           })
 
-        console.log(`Subscription created for user ${userId}`)
+        logger.info(`Subscription created for user ${userId}`)
         break
       }
 
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
             })
             .eq('stripe_subscription_id', subscription.id)
 
-          console.log(`Subscription updated for user ${user.id}`)
+          logger.info(`Subscription updated for user ${user.id}`)
 
           // Auto-disable on bad billing states
           if (['canceled', 'past_due', 'unpaid', 'incomplete_expired'].includes(subscription.status as any)) {
@@ -160,18 +161,18 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          console.log(`Subscription canceled for user ${user.id}`)
+          logger.info(`Subscription canceled for user ${user.id}`)
         }
         break
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        logger.info(`Unhandled event type: ${event.type}`)
     }
 
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Webhook handler error:', error)
+    logger.error('Webhook handler error:', error)
     return NextResponse.json(
       { error: 'Webhook handler failed' },
       { status: 500 }
