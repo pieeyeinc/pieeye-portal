@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
 import { auth } from '@clerk/nextjs/server'
 import { stripe, plans } from '@/lib/stripe'
 import { supabase } from '@/lib/supabase'
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ sessionId: session.id })
   } catch (error) {
-    console.error('Checkout error:', error)
+    logger.error('Checkout error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

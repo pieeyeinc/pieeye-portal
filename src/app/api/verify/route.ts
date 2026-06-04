@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
 import { auth } from '@clerk/nextjs/server'
 import { supabase } from '@/lib/supabase'
 import { verifyDomainOwnership } from '@/lib/dns-verification'
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
       })
     }
   } catch (error) {
-    console.error('Verification error:', error)
+    logger.error('Verification error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

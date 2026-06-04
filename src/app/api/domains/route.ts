@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
 import { auth } from '@clerk/nextjs/server'
 import { supabase } from '@/lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
@@ -35,7 +36,7 @@ export async function GET() {
 
     return NextResponse.json({ domains })
   } catch (error) {
-    console.error('Get domains error:', error)
+    logger.error('Get domains error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
         : 'Domain added successfully. Please verify ownership.' 
     })
   } catch (error) {
-    console.error('Add domain error:', error)
+    logger.error('Add domain error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
