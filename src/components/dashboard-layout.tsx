@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminNavItem } from '@/components/admin/AdminNavItem'
+import { FreeTierBanner } from '@/components/free-tier-banner'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -158,6 +159,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1">
           <div className="py-6">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <FreeTierBanner />
               {children}
             </div>
           </div>

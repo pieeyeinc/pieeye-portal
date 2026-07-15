@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 export interface UsageStats {
+  plan: string
   currentRequests: number
   requestLimit: number
   usagePercentage: number
@@ -42,7 +43,8 @@ export async function getUserUsageStats(userId: string): Promise<UsageStats | nu
     const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
 
-    // Get user's subscription to determine plan limits
+    // Get user's subscription to determine plan limits.
+    // Users without an active subscription fall back to the free tier.
     const { data: subscription } = await supabase
       .from('subscriptions')
       .select('plan')
@@ -50,9 +52,7 @@ export async function getUserUsageStats(userId: string): Promise<UsageStats | nu
       .eq('status', 'active')
       .single()
 
-    if (!subscription) {
-      return null
-    }
+    const plan = subscription?.plan ?? 'free'
 
     // Get current month's request count
     const { data: usage, error } = await supabase
@@ -68,13 +68,14 @@ export async function getUserUsageStats(userId: string): Promise<UsageStats | nu
     }
 
     const currentRequests = usage?.length || 0
-    const requestLimit = getRequestLimitForPlan(subscription.plan)
+    const requestLimit = getRequestLimitForPlan(plan)
     const usagePercentage = (currentRequests / requestLimit) * 100
     const daysRemaining = monthEnd.getDate() - currentDate.getDate()
     const isOverLimit = currentRequests > requestLimit
     const isNearLimit = usagePercentage >= 80
 
     return {
+      plan,
       currentRequests,
       requestLimit,
       usagePercentage,
@@ -90,6 +91,8 @@ export async function getUserUsageStats(userId: string): Promise<UsageStats | nu
 
 function getRequestLimitForPlan(plan: string): number {
   switch (plan) {
+    case 'free':
+      return 1000
     case 'starter':
       return 100000
     case 'pro':
@@ -97,7 +100,7 @@ function getRequestLimitForPlan(plan: string): number {
     case 'enterprise':
       return 10000000
     default:
-      return 100000
+      return 1000
   }
 }
 
